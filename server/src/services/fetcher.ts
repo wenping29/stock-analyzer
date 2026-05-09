@@ -1,19 +1,54 @@
 import axios from "axios";
+import type { AxiosInstance, AxiosError } from "axios";
 import type { KlineData, KlinePeriod, StockInfo } from "@shared/types";
 export type { KlineData, KlinePeriod, StockInfo };
 
+// ---------- configuration ----------
+const RATE_LIMIT_MS = 2000;
+const REQUEST_TIMEOUT_MS = 30000;
+const MAX_RETRIES = 3;
+
+// ---------- rate limiter ----------
 let lastRequestTime = 0;
 async function rateLimit(): Promise<void> {
   const now = Date.now();
   const elapsed = now - lastRequestTime;
-  if (elapsed < 1000) {
-    await new Promise((r) => setTimeout(r, 1000 - elapsed));
+  if (elapsed < RATE_LIMIT_MS) {
+    await new Promise((r) => setTimeout(r, RATE_LIMIT_MS - elapsed));
   }
   lastRequestTime = Date.now();
 }
 
-const sinaApi = axios.create({
-  timeout: 15000,
+// ---------- retryable axios factory ----------
+const RETRYABLE_ERROR_CODES = new Set(["ECONNRESET", "ECONNABORTED", "ETIMEDOUT", "ERR_NETWORK", "ERR_HTTP_REQUEST"]);
+function isRetryable(err: AxiosError): boolean {
+  if (err.code && RETRYABLE_ERROR_CODES.has(err.code)) return true;
+  const msg = (err.message ?? "").toLowerCase();
+  if (msg.includes("socket hang up") || msg.includes("timeout") || msg.includes("network")) return true;
+  return false;
+}
+
+function createRetryableClient(baseConfig: Record<string, any>): AxiosInstance {
+  const client = axios.create({ timeout: REQUEST_TIMEOUT_MS, ...baseConfig });
+
+  client.interceptors.response.use(undefined, async (err: AxiosError) => {
+    const config = err.config as any;
+    if (!config || !isRetryable(err)) return Promise.reject(err);
+
+    config.__retryCount = config.__retryCount ?? 0;
+    if (config.__retryCount >= MAX_RETRIES) return Promise.reject(err);
+
+    config.__retryCount++;
+    const delay = Math.min(1000 * Math.pow(2, config.__retryCount), 10000);
+    console.warn(`[fetcher] ${err.code || err.message} — retry ${config.__retryCount}/${MAX_RETRIES} after ${delay}ms`);
+    await new Promise((r) => setTimeout(r, delay));
+    return client(config);
+  });
+
+  return client;
+}
+
+const sinaApi = createRetryableClient({
   headers: {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     Referer: "https://finance.sina.com.cn/",
@@ -22,8 +57,7 @@ const sinaApi = axios.create({
   },
 });
 
-const eastmoneyApi = axios.create({
-  timeout: 15000,
+const eastmoneyApi = createRetryableClient({
   headers: {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     Referer: "https://quote.eastmoney.com/",
@@ -210,36 +244,14 @@ class StockDataFetcher {
 
       await rateLimit();
       let items: any[] | undefined;
-      let retries = 0;
-      const maxRetries = 3;
 
-      while (retries <= maxRetries) {
-        try {
-          const resp = await eastmoneyApi.get(this.eastmoneyList, { params });
-          items = resp.data?.data?.diff;
-          total = resp.data?.data?.total || 0;
-
-          if (items && Array.isArray(items) && items.length > 0) {
-            consecutiveEmpty = 0;
-            break;
-          }
-          retries++;
-          if (retries <= maxRetries) {
-            const delay = retries * 1000;
-            console.warn(`fetchStockList: page ${page} empty (attempt ${retries}), retrying in ${delay}ms`);
-            await new Promise((r) => setTimeout(r, delay));
-          }
-        } catch {
-          retries++;
-          if (retries <= maxRetries) {
-            const delay = retries * 1000;
-            console.warn(`fetchStockList: page ${page} error (attempt ${retries}), retrying in ${delay}ms`);
-            await new Promise((r) => setTimeout(r, delay));
-          } else {
-            console.error(`fetchStockList: page ${page} failed after ${maxRetries} retries, skipping`);
-            items = [];
-          }
-        }
+      try {
+        const resp = await eastmoneyApi.get(this.eastmoneyList, { params });
+        items = resp.data?.data?.diff;
+        total = resp.data?.data?.total || 0;
+      } catch (e) {
+        console.error(`fetchStockList: page ${page} failed — ${(e as Error).message}, skipping`);
+        items = [];
       }
 
       if (!items || !Array.isArray(items) || items.length === 0) {
@@ -270,11 +282,13 @@ class StockDataFetcher {
 
   async fetchRealTimeQuote(symbols: string[]): Promise<any[]> {
     const results: any[] = [];
-    const sinaApi2 = axios.create({ timeout: 8000, headers: { "User-Agent": "Mozilla/5.0" } });
+    const sinaQuoteApi = createRetryableClient({
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
     for (const sym of symbols) {
       await rateLimit();
       try {
-        const resp = await sinaApi2.get<string>(
+        const resp = await sinaQuoteApi.get<string>(
           `https://hq.sinajs.cn/list=${this.toSinaSymbol(sym)}`,
           { headers: { Referer: "https://finance.sina.com.cn/" } }
         );
