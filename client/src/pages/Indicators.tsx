@@ -57,20 +57,23 @@ export default function Indicators() {
     }
   }, [dateRange, period, selectedIndicators]);
 
-  const handleRefreshIndicators = useCallback(async () => {
-    if (!klineData.length) return;
+  const handleRefreshChart = useCallback(async () => {
+    if (!selectedStock) return;
     setLoading(true);
     try {
+      const data = await fetchKline(selectedStock.code, dateRange.start, dateRange.end, period);
+      setKlineData(data);
+
       const indicatorReqs = selectedIndicators.map((name) => {
         const def = INDICATOR_LIST.find((i) => i.name === name);
         return { name, params: def?.defaultParams || {} };
       });
-      const results = await computeIndicators(klineData, indicatorReqs);
+      const results = await computeIndicators(data, indicatorReqs);
       setIndicatorResults(results);
     } finally {
       setLoading(false);
     }
-  }, [klineData, selectedIndicators]);
+  }, [selectedStock, dateRange, period, selectedIndicators]);
 
   const toggleIndicator = (name: string) => {
     setSelectedIndicators((prev) =>
@@ -183,9 +186,9 @@ export default function Indicators() {
             ))}
           </div>
           <button
-            onClick={handleRefreshIndicators}
-            disabled={!klineData.length}
-            className="mt-3 w-full px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-200 disabled:opacity-40"
+            onClick={handleRefreshChart}
+            disabled={!selectedStock}
+            className="mt-3 w-full px-3 py-1.5 bg-blue-700 hover:bg-blue-600 rounded text-sm text-white disabled:opacity-40"
           >
             更新图表
           </button>
