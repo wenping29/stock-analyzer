@@ -1,0 +1,16 @@
+<layerGroup>
+    <name>ZXCASDQWE</name>
+    <workspace>DemoWorkPlace</workspace>
+    <layers>
+        <Layer>DemoWorkPlace:single_Gis_Airport</Layer>
+        <layer>DemoWorkPlace:single_Gis_Bridge</layer>
+        <layerGroup>DemoWorkPlace:rrerroadddddd</layerGroup>
+    </layers>
+    <styles>
+        <style>jichang</style>
+        <style>jichang</style>
+        <style />
+    </styles>
+    <mode>CONTAINER</mode>
+    <title>ZXCASDOWE</title>
+</layerGroup>

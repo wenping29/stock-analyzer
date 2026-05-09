@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o NUL -w \"%{http_code}\" http://localhost:3001/api/stock/search?q=600519)",
+      "Bash(curl -s --connect-timeout 5 -H \"Referer: https://quote.eastmoney.com/\" \"https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6&fields=f12,f14,f13,f100\")",
+      "Bash(curl -v --connect-timeout 10 \"https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6&fields=f12,f14,f13,f100\")",
+      "Bash(curl -s --connect-timeout 10 -H \"User-Agent: Mozilla/5.0\" \"https://push2his.eastmoney.com/api/qt/stock/kline/get?fields1=f1&fields2=f51&klt=101&fqt=1&secid=1.600519&beg=20240101&end=20240131&lmt=5\")",
+      "Bash(curl -s --connect-timeout 10 --http1.1 -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\)\" -H \"Referer: https://quote.eastmoney.com/\" \"https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6&fields=f12,f14,f13,f100\")",
+      "Bash(curl -s --connect-timeout 10 --tlsv1.2 --insecure -H \"User-Agent: Mozilla/5.0\" \"https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6&fields=f12,f14\")",
+      "Bash(curl -s --connect-timeout 10 --tlsv1.3 --insecure -H \"User-Agent: Mozilla/5.0\" \"https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=3&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6&fields=f12,f14\")",
+      "Bash(curl -s --connect-timeout 5 \"https://www.baidu.com\")",
+      "Bash(nslookup push2.eastmoney.com)",
+      "Bash(curl -s --connect-timeout 5 \"http://localhost:3001/api/stock/search?q=600519\")",
+      "Bash(curl -s --connect-timeout 5 \"http://localhost:3001/api/stock/list\")",
+      "Bash(taskkill //PID 20024 //F)",
+      "Bash(nohup npx tsx src/index.ts)",
+      "Read(//tmp/**)",
+      "Bash(curl -s --connect-timeout 10 \"http://localhost:3001/api/stock/search?q=600519\")",
+      "Bash(node -e ' *)",
+      "Bash(taskkill //PID 7144 //F)",
+      "Bash(curl -s --connect-timeout 5 \"http://localhost:3001/api/indicators\")",
+      "Bash(taskkill //PID 20676 //F)",
+      "Bash(curl -s --connect-timeout 5 \"http://localhost:3001/api/backtesting/results\")",
+      "Bash(curl -s --connect-timeout 5 \"http://localhost:3001/api/monitoring/jobs\")"
+    ]
+  }
+}
