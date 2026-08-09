@@ -85,7 +85,10 @@ interface SinaKlineItem {
 class StockDataFetcher {
   private sinaKline = "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData";
   private eastmoneyKline = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
-  private eastmoneyList = "https://push2.eastmoney.com/api/qt/clist/get";
+  private eastmoneyListBaseUrls = [
+    "https://push2.eastmoney.com",
+    "https://push2delay.eastmoney.com",
+  ];
 
   private toSinaSymbol(symbol: string): string {
     return symbol.startsWith("6") ? `sh${symbol}` : `sz${symbol}`;
@@ -224,10 +227,11 @@ class StockDataFetcher {
 
   async fetchStockList(): Promise<StockInfo[]> {
     const allItems: any[] = [];
-    const pageSize = 100;
-    const maxPages = 60;
+    const pageSize = 1000;
+    const maxPages = 80;
     let total = 0;
     let consecutiveEmpty = 0;
+    let primaryDown = false;
 
     for (let page = 1; page <= maxPages; page++) {
       const params = {
@@ -238,20 +242,26 @@ class StockDataFetcher {
         fltt: "2",
         invt: "2",
         fid: "f3",
-        fs: "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23",
+        fs: "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048",
         fields: "f12,f14,f13,f100",
+        ut: "bd1d9ddb04089700cf9c27f6f7426281",
       };
 
       await rateLimit();
       let items: any[] | undefined;
 
-      try {
-        const resp = await eastmoneyApi.get(this.eastmoneyList, { params });
-        items = resp.data?.data?.diff;
-        total = resp.data?.data?.total || 0;
-      } catch (e) {
-        console.error(`fetchStockList: page ${page} failed — ${(e as Error).message}, skipping`);
-        items = [];
+      for (const baseUrl of this.eastmoneyListBaseUrls) {
+        if (baseUrl === "https://push2.eastmoney.com" && primaryDown) continue;
+        try {
+          const resp = await eastmoneyApi.get(`${baseUrl}/api/qt/clist/get`, { params });
+          items = resp.data?.data?.diff;
+          total = resp.data?.data?.total || 0;
+          if (Array.isArray(items) && items.length > 0) break;
+        } catch (e) {
+          console.warn(`fetchStockList: ${baseUrl} page ${page} failed — ${(e as Error).message}, trying next host`);
+          if (baseUrl === "https://push2.eastmoney.com") primaryDown = true;
+          items = undefined;
+        }
       }
 
       if (!items || !Array.isArray(items) || items.length === 0) {
@@ -275,9 +285,15 @@ class StockDataFetcher {
     return allItems.map((item: any) => ({
       code: item.f12,
       name: item.f14,
-      market: item.f13 === 1 ? "SH" : "SZ",
+      market: this.marketOf(item.f12),
       industry: item.f100 || "",
     }));
+  }
+
+  private marketOf(code: string): string {
+    if (/^[689]/.test(code) && !/^92/.test(code)) return "SH";
+    if (/^[0-3]/.test(code)) return "SZ";
+    return "BJ";
   }
 
   async fetchRealTimeQuote(symbols: string[]): Promise<any[]> {

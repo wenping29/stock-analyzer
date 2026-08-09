@@ -116,6 +116,18 @@ class StockDatabase {
         exit_signals TEXT
       )
     `);
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS stock_list (
+        code TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        market TEXT,
+        industry TEXT,
+        updated_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    this.db.run("CREATE INDEX IF NOT EXISTS idx_stock_list_market ON stock_list(market)");
+    this.db.run("CREATE INDEX IF NOT EXISTS idx_stock_list_name ON stock_list(name)");
   }
 
   // ---- Persistence ----
@@ -324,6 +336,43 @@ class StockDatabase {
       [jobId, JSON.stringify(entrySignals), JSON.stringify(exitSignals)]
     );
     this.persist();
+  }
+
+  // ---- Stock list operations ----
+
+  saveStockList(stocks: { code: string; name: string; market?: string; industry?: string }[]): void {
+    if (!this.db || stocks.length === 0) return;
+
+    const stmt = this.db.prepare(
+      "INSERT OR REPLACE INTO stock_list (code, name, market, industry, updated_at) VALUES (?, ?, ?, ?, datetime('now'))"
+    );
+
+    this.db.run("BEGIN TRANSACTION");
+    for (const s of stocks) {
+      stmt.run([s.code, s.name, s.market || null, s.industry || null]);
+    }
+    this.db.run("COMMIT");
+    stmt.free();
+    this.persist();
+  }
+
+  getStockList(): { code: string; name: string; market?: string; industry?: string; updated_at?: string }[] {
+    if (!this.db) return [];
+
+    const results: any[] = [];
+    const stmt = this.db.prepare("SELECT code, name, market, industry, updated_at FROM stock_list ORDER BY code");
+    while (stmt.step()) results.push(stmt.getAsObject());
+    stmt.free();
+    return results;
+  }
+
+  countStockList(): number {
+    if (!this.db) return 0;
+    const stmt = this.db.prepare("SELECT COUNT(*) as cnt FROM stock_list");
+    stmt.step();
+    const row = stmt.getAsObject();
+    stmt.free();
+    return (row.cnt as number) || 0;
   }
 
   // ---- Utility ----
