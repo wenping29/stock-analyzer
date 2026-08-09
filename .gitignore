@@ -6,7 +6,7 @@ server/dist/
 client/dist/
 
 # Cache & data
-server/data/
+#server/data/
 scraper/data/
 
 # Environment
