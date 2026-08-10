@@ -7,6 +7,8 @@ import { backtestingRouter } from "./routes/backtesting";
 import { optimizationRouter } from "./routes/optimization";
 import { monitoringRouter } from "./routes/monitoring";
 import { monitoringScheduler } from "./monitoring/scheduler";
+import { realtimeQuotes } from "./services/realtime";
+import { startRealtimeServer } from "./realtime/server";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,8 +34,15 @@ const server = app.listen(PORT, () => {
   });
 });
 
+// Start realtime quotes service on a separate port
+startRealtimeServer();
+realtimeQuotes.start().catch((e) => {
+  console.error("[realtime] Failed to start quote service:", e.message);
+});
+
 // Graceful shutdown
 process.on("SIGTERM", () => {
   monitoringScheduler.stop();
+  realtimeQuotes.stop();
   server.close();
 });

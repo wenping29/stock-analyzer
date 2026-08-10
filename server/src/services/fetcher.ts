@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosError } from "axios";
-import type { KlineData, KlinePeriod, StockInfo } from "@shared/types";
-export type { KlineData, KlinePeriod, StockInfo };
+import type { KlineData, KlinePeriod, StockInfo, RealtimeQuote } from "@shared/types";
+export type { KlineData, KlinePeriod, StockInfo, RealtimeQuote };
 
 // ---------- configuration ----------
 const RATE_LIMIT_MS = 2000;
@@ -225,27 +225,19 @@ class StockDataFetcher {
     } catch { /* silent fail — API data is still returned */ }
   }
 
-  async fetchStockList(): Promise<StockInfo[]> {
+  private stockListFs = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048";
+
+  private async fetchClistItems(
+    pageParams: Record<string, string>,
+    maxPages: number
+  ): Promise<{ items: any[]; total: number }> {
     const allItems: any[] = [];
-    const pageSize = 1000;
-    const maxPages = 80;
     let total = 0;
     let consecutiveEmpty = 0;
     let primaryDown = false;
 
     for (let page = 1; page <= maxPages; page++) {
-      const params = {
-        pn: String(page),
-        pz: String(pageSize),
-        po: "1",
-        np: "1",
-        fltt: "2",
-        invt: "2",
-        fid: "f3",
-        fs: "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048",
-        fields: "f12,f14,f13,f100",
-        ut: "bd1d9ddb04089700cf9c27f6f7426281",
-      };
+      const params = { ...pageParams, pn: String(page) };
 
       await rateLimit();
       let items: any[] | undefined;
@@ -258,7 +250,7 @@ class StockDataFetcher {
           total = resp.data?.data?.total || 0;
           if (Array.isArray(items) && items.length > 0) break;
         } catch (e) {
-          console.warn(`fetchStockList: ${baseUrl} page ${page} failed — ${(e as Error).message}, trying next host`);
+          console.warn(`fetchClistItems: ${baseUrl} page ${page} failed — ${(e as Error).message}, trying next host`);
           if (baseUrl === "https://push2.eastmoney.com") primaryDown = true;
           items = undefined;
         }
@@ -267,7 +259,7 @@ class StockDataFetcher {
       if (!items || !Array.isArray(items) || items.length === 0) {
         consecutiveEmpty++;
         if (consecutiveEmpty >= 3) {
-          console.error(`fetchStockList: ${consecutiveEmpty} consecutive empty pages, stopping`);
+          console.error(`fetchClistItems: ${consecutiveEmpty} consecutive empty pages, stopping`);
           break;
         }
         continue;
@@ -278,16 +270,63 @@ class StockDataFetcher {
       if (total > 0 && allItems.length >= total) break;
     }
 
-    console.log(`fetchStockList: got ${allItems.length}/${total} stocks`);
-    if (allItems.length === 0) {
+    console.log(`fetchClistItems: got ${allItems.length}/${total} items`);
+    return { items: allItems, total };
+  }
+
+  async fetchStockList(): Promise<StockInfo[]> {
+    const { items } = await this.fetchClistItems({
+      pz: "1000",
+      po: "1",
+      np: "1",
+      fltt: "2",
+      invt: "2",
+      fid: "f3",
+      fs: this.stockListFs,
+      fields: "f12,f14,f13,f100",
+      ut: "bd1d9ddb04089700cf9c27f6f7426281",
+    }, 80);
+
+    if (items.length === 0) {
       throw new Error("股票列表为空，API可能限流");
     }
-    return allItems.map((item: any) => ({
+    return items.map((item: any) => ({
       code: item.f12,
       name: item.f14,
       market: this.marketOf(item.f12),
       industry: item.f100 || "",
     }));
+  }
+
+  async fetchRealtimeQuotes(): Promise<RealtimeQuote[]> {
+    const { items } = await this.fetchClistItems({
+      pz: "5000",
+      po: "1",
+      np: "1",
+      fltt: "2",
+      invt: "2",
+      fid: "f2",
+      fs: this.stockListFs,
+      fields: "f12,f14,f2,f3,f5,f6,f15,f16",
+      ut: "bd1d9ddb04089700cf9c27f6f7426281",
+    }, 80);
+
+    return items.map((item: any) => ({
+      code: item.f12,
+      name: item.f14,
+      market: this.marketOf(item.f12),
+      price: this.toNumber(item.f2),
+      changePct: this.toNumber(item.f3),
+      volume: this.toNumber(item.f5),
+      amount: this.toNumber(item.f6),
+      high: this.toNumber(item.f15),
+      low: this.toNumber(item.f16),
+    }));
+  }
+
+  private toNumber(v: any): number {
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
   }
 
   private marketOf(code: string): string {

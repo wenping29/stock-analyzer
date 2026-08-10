@@ -25,6 +25,20 @@ export interface StockInfo {
   industry?: string;
 }
 
+// ---- Realtime Quotes ----
+
+export interface RealtimeQuote {
+  code: string;
+  name: string;
+  market?: string;
+  price: number;       // 最新价
+  changePct: number;   // 涨跌幅 %
+  volume: number;      // 成交量（手）
+  high: number;        // 最高价
+  low: number;         // 最低价
+  amount?: number;     // 成交额
+}
+
 // ---- Indicators ----
 
 export interface Signal {
