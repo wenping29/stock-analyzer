@@ -16,6 +16,8 @@ const STOCK_TYPES: { value: StockListType; label: string }[] = [
   { value: "neeq", label: "新三板" },
 ];
 
+const PAGE_SIZE = 15;
+
 export default function StockListPanel() {
   const [stocks, setStocks] = useState<StockInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,16 +25,22 @@ export default function StockListPanel() {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<StockListType>("all");
   const [collapsed, setCollapsed] = useState(false);
+  const [page, setPage] = useState(1);
   const { selected, selectStock } = useStockSelection();
 
   useEffect(() => {
     setLoading(true);
     setError("");
+    setPage(1);
     fetchStockList(type)
       .then(setStocks)
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
   }, [type]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -42,6 +50,13 @@ export default function StockListPanel() {
         s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)
     );
   }, [stocks, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   return (
     <aside
@@ -94,7 +109,7 @@ export default function StockListPanel() {
             {error && <div className="p-4 text-sm text-red-400">{error}</div>}
             {!loading && !error && (
               <ul className="divide-y divide-gray-800">
-                {filtered.map((s) => (
+                {pageItems.map((s) => (
                   <li
                     key={s.code}
                     onClick={() => selectStock(s)}
@@ -106,9 +121,35 @@ export default function StockListPanel() {
                     <span className="font-mono text-gray-500">{s.code}</span>
                   </li>
                 ))}
+                {pageItems.length === 0 && (
+                  <li className="px-3 py-4 text-sm text-gray-500 text-center">
+                    无匹配股票
+                  </li>
+                )}
               </ul>
             )}
           </div>
+          {!loading && !error && filtered.length > 0 && (
+            <div className="flex items-center justify-between px-3 py-2 border-t border-gray-800 shrink-0">
+              <button
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                上一页
+              </button>
+              <span className="text-xs text-gray-500">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                下一页
+              </button>
+            </div>
+          )}
         </>
       )}
     </aside>
