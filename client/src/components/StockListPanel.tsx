@@ -16,7 +16,7 @@ const STOCK_TYPES: { value: StockListType; label: string }[] = [
   { value: "neeq", label: "新三板" },
 ];
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 20;
 
 export default function StockListPanel() {
   const [stocks, setStocks] = useState<StockInfo[]>([]);
@@ -31,16 +31,11 @@ export default function StockListPanel() {
   useEffect(() => {
     setLoading(true);
     setError("");
-    setPage(1);
     fetchStockList(type)
       .then(setStocks)
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
   }, [type]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -52,11 +47,26 @@ export default function StockListPanel() {
   }, [stocks, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
+
+  // Keep page in valid range when data/size changes
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const pageItems = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
   );
+
+  const handleTypeChange = (t: StockListType) => {
+    setType(t);
+    setPage(1);
+  };
+
+  const handleQueryChange = (q: string) => {
+    setQuery(q);
+    setPage(1);
+  };
 
   return (
     <aside
@@ -90,7 +100,7 @@ export default function StockListPanel() {
           <div className="p-3 border-b border-gray-800 shrink-0">
             <select
               value={type}
-              onChange={(e) => setType(e.target.value as StockListType)}
+              onChange={(e) => handleTypeChange(e.target.value as StockListType)}
               className="w-full mb-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
             >
               {STOCK_TYPES.map((t) => (
@@ -99,7 +109,7 @@ export default function StockListPanel() {
             </select>
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => handleQueryChange(e.target.value)}
               placeholder="搜索代码 / 名称"
               className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500"
             />
@@ -132,18 +142,18 @@ export default function StockListPanel() {
           {!loading && !error && filtered.length > 0 && (
             <div className="flex items-center justify-between px-3 py-2 border-t border-gray-800 shrink-0">
               <button
-                onClick={() => setPage(currentPage - 1)}
-                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
                 className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 上一页
               </button>
               <span className="text-xs text-gray-500">
-                {currentPage} / {totalPages}
+                {page} / {totalPages}
               </span>
               <button
-                onClick={() => setPage(currentPage + 1)}
-                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
                 className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 下一页
