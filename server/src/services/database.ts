@@ -162,6 +162,16 @@ class StockDatabase {
       `);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_index_${period}_code ON index_${period}(code)`);
     }
+
+    const fxPeriods = ["daily", "weekly", "monthly", "quarterly", "yearly"] as const;
+    for (const period of fxPeriods) {
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS fx_cny_usd_${period} (
+          date TEXT PRIMARY KEY,
+          open REAL, high REAL, low REAL, close REAL
+        )
+      `);
+    }
   }
 
   // ---- Persistence ----
@@ -606,6 +616,72 @@ class StockDatabase {
     const tableName = `index_${period}`;
     const stmt = this.db.prepare(`SELECT MIN(date) as minDate, MAX(date) as maxDate FROM ${tableName} WHERE code = ?`);
     stmt.bind([code]);
+    stmt.step();
+    const row = stmt.getAsObject();
+    stmt.free();
+    if (!row.minDate || !row.maxDate) return null;
+    return { minDate: row.minDate as string, maxDate: row.maxDate as string };
+  }
+
+  // ---- FX CNY/USD period tables ----
+
+  insertFxCnyUsd(period: string, rows: { date: string; open: number; high: number; low: number; close: number }[]): void {
+    if (!this.db || rows.length === 0) return;
+
+    const tableName = `fx_cny_usd_${period}`;
+    const stmt = this.db.prepare(
+      `INSERT OR REPLACE INTO ${tableName} (date, open, high, low, close) VALUES (?, ?, ?, ?, ?)`
+    );
+
+    this.db.run("BEGIN TRANSACTION");
+    for (const r of rows) {
+      stmt.run([r.date, r.open, r.high, r.low, r.close]);
+    }
+    this.db.run("COMMIT");
+    stmt.free();
+    this.persist();
+  }
+
+  getFxCnyUsd(period: string, start?: string, end?: string): { date: string; open: number; high: number; low: number; close: number }[] {
+    if (!this.db) return [];
+
+    const tableName = `fx_cny_usd_${period}`;
+    const sql = start && end
+      ? `SELECT date, open, high, low, close FROM ${tableName} WHERE date >= ? AND date <= ? ORDER BY date ASC`
+      : `SELECT date, open, high, low, close FROM ${tableName} ORDER BY date ASC`;
+    const stmt = this.db.prepare(sql);
+    const params = start && end ? [start, end] : [];
+    stmt.bind(params);
+
+    const results: { date: string; open: number; high: number; low: number; close: number }[] = [];
+    while (stmt.step()) {
+      const row = stmt.getAsObject();
+      results.push({
+        date: row.date as string,
+        open: row.open as number,
+        high: row.high as number,
+        low: row.low as number,
+        close: row.close as number,
+      });
+    }
+    stmt.free();
+    return results;
+  }
+
+  hasFxCnyUsd(period: string): boolean {
+    if (!this.db) return false;
+    const tableName = `fx_cny_usd_${period}`;
+    const stmt = this.db.prepare(`SELECT COUNT(*) as cnt FROM ${tableName}`);
+    stmt.step();
+    const row = stmt.getAsObject();
+    stmt.free();
+    return (row.cnt as number) > 0;
+  }
+
+  getFxCnyUsdDateRange(period: string): { minDate: string; maxDate: string } | null {
+    if (!this.db) return null;
+    const tableName = `fx_cny_usd_${period}`;
+    const stmt = this.db.prepare(`SELECT MIN(date) as minDate, MAX(date) as maxDate FROM ${tableName}`);
     stmt.step();
     const row = stmt.getAsObject();
     stmt.free();

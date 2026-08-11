@@ -175,3 +175,14 @@ export async function fetchIndexPeriodData(
   });
   return data.data;
 }
+
+export async function fetchFxCnyUsd(
+  period: string,
+  start?: string,
+  end?: string
+): Promise<{ date: string; open: number; high: number; low: number; close: number }[]> {
+  const { data } = await api.get(`/market/fx-cny-usd/${period}`, {
+    params: { start, end },
+  });
+  return data.data;
+}

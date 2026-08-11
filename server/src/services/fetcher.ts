@@ -848,6 +848,78 @@ class StockDataFetcher {
       yearly: this.aggregateToPeriod(dailyData, "yearly"),
     };
   }
+
+  async fetchFxCnyUsdDaily(startDate: string, endDate: string): Promise<{ date: string; open: number; high: number; low: number; close: number }[]> {
+    const startStr = startDate.replace(/-/g, "");
+    const endStr = endDate.replace(/-/g, "");
+
+    const allRates: Record<string, number> = {};
+    const startYear = new Date(startDate).getFullYear();
+    const endYear = new Date(endDate).getFullYear();
+
+    for (let year = startYear; year <= endYear; year++) {
+      const chunkStart = year === startYear ? startDate : `${year}-01-01`;
+      const chunkEnd = year === endYear ? endDate : `${year}-12-31`;
+      const url = `https://api.frankfurter.app/${chunkStart}..${chunkEnd}`;
+
+      try {
+        const resp = await axios.get(url, {
+          params: { from: "USD", to: "CNY" },
+          headers: { "User-Agent": "Mozilla/5.0" },
+          timeout: REQUEST_TIMEOUT_MS,
+        });
+        const rates: Record<string, { CNY: number }> = resp.data?.rates || {};
+        for (const [date, val] of Object.entries(rates)) {
+          const dateStr = date.replace(/-/g, "");
+          if (dateStr >= startStr && dateStr <= endStr) {
+            allRates[dateStr] = val.CNY;
+          }
+        }
+        await rateLimit();
+      } catch (e) {
+        console.warn(`[fetcher] Frankfurter ${year} failed: ${(e as Error).message}`);
+      }
+    }
+
+    const sortedDates = Object.keys(allRates).sort();
+    const result: { date: string; open: number; high: number; low: number; close: number }[] = [];
+
+    for (let i = 0; i < sortedDates.length; i++) {
+      const date = sortedDates[i];
+      const rate = allRates[date];
+      const prevRate = i > 0 ? allRates[sortedDates[i - 1]] : rate;
+      result.push({
+        date,
+        open: prevRate,
+        high: Math.max(prevRate, rate),
+        low: Math.min(prevRate, rate),
+        close: rate,
+      });
+    }
+
+    return result;
+  }
+
+  async fetchFxCnyUsdAllPeriods(startDate: string, endDate: string): Promise<Record<string, { date: string; open: number; high: number; low: number; close: number }[]>> {
+    const dailyData = await this.fetchFxCnyUsdDaily(startDate, endDate);
+    if (dailyData.length === 0) {
+      return { daily: [], weekly: [], monthly: [], quarterly: [], yearly: [] };
+    }
+
+    const toKline = (d: { date: string; open: number; high: number; low: number; close: number }[]): KlineData[] =>
+      d.map((r) => ({ date: r.date, open: r.open, high: r.high, low: r.low, close: r.close, volume: 0, amount: 0 }));
+
+    const fromKline = (k: KlineData[]): { date: string; open: number; high: number; low: number; close: number }[] =>
+      k.map((r) => ({ date: r.date, open: r.open, high: r.high, low: r.low, close: r.close }));
+
+    return {
+      daily: dailyData,
+      weekly: fromKline(this.aggregateToPeriod(toKline(dailyData), "weekly")),
+      monthly: fromKline(this.aggregateToPeriod(toKline(dailyData), "monthly")),
+      quarterly: fromKline(this.aggregateToPeriod(toKline(dailyData), "quarterly")),
+      yearly: fromKline(this.aggregateToPeriod(toKline(dailyData), "yearly")),
+    };
+  }
 }
 
 export const fetcher = new StockDataFetcher();

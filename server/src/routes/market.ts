@@ -157,3 +157,29 @@ marketRouter.get("/index-data/:period", async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/market/fx-cny-usd/:period?start=&end= — 人民币/美元汇率
+const VALID_FX_PERIODS = ["daily", "weekly", "monthly", "quarterly", "yearly"];
+
+marketRouter.get("/fx-cny-usd/:period", async (req: Request, res: Response) => {
+  try {
+    const { period } = req.params;
+    if (!VALID_FX_PERIODS.includes(period)) {
+      res.status(400).json({ success: false, error: `Invalid period. Valid values: ${VALID_FX_PERIODS.join(", ")}` });
+      return;
+    }
+    const { start, end } = req.query;
+    const cacheKey = `fx_cny_usd_${period}_${start || "all"}_${end || "all"}`;
+    const data = await cacheManager.getOrFetch(
+      cacheKey,
+      async () => {
+        await db.init();
+        return db.getFxCnyUsd(period, start as string | undefined, end as string | undefined);
+      },
+      60 * 60 * 1000
+    );
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
