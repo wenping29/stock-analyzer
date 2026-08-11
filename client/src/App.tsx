@@ -4,6 +4,7 @@ import Screener from "./pages/Screener";
 import Backtest from "./pages/Backtest";
 import Optimization from "./pages/Optimization";
 import Monitoring from "./pages/Monitoring";
+import StockListPanel from "./components/StockListPanel";
 
 function NavBar() {
   return (
@@ -32,14 +33,19 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-950">
       <NavBar />
-      <Routes>
-        <Route path="/" element={<Navigate to="/indicators" replace />} />
-        <Route path="/indicators" element={<Indicators />} />
-        <Route path="/screener" element={<Screener />} />
-        <Route path="/backtest" element={<Backtest />} />
-        <Route path="/optimization" element={<Optimization />} />
-        <Route path="/monitoring" element={<Monitoring />} />
-      </Routes>
+      <div className="flex">
+        <div className="flex-1 min-w-0">
+          <Routes>
+            <Route path="/" element={<Navigate to="/indicators" replace />} />
+            <Route path="/indicators" element={<Indicators />} />
+            <Route path="/screener" element={<Screener />} />
+            <Route path="/backtest" element={<Backtest />} />
+            <Route path="/optimization" element={<Optimization />} />
+            <Route path="/monitoring" element={<Monitoring />} />
+          </Routes>
+        </div>
+        <StockListPanel />
+      </div>
     </div>
   );
 }
