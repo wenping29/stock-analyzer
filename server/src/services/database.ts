@@ -128,6 +128,16 @@ class StockDatabase {
     `);
     this.db.run("CREATE INDEX IF NOT EXISTS idx_stock_list_market ON stock_list(market)");
     this.db.run("CREATE INDEX IF NOT EXISTS idx_stock_list_name ON stock_list(name)");
+
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS us_short_rates (
+        maturity TEXT NOT NULL,
+        date TEXT NOT NULL,
+        rate REAL,
+        UNIQUE(maturity, date)
+      )
+    `);
+    this.db.run("CREATE INDEX IF NOT EXISTS idx_us_short_rates ON us_short_rates(maturity, date)");
   }
 
   // ---- Persistence ----
@@ -391,6 +401,64 @@ class StockDatabase {
       market: (row.market as string) || undefined,
       industry: (row.industry as string) || undefined,
     };
+  }
+
+  // ---- US short-term treasury rates ----
+
+  insertUsShortRates(maturity: string, rows: { date: string; rate: number }[]): void {
+    if (!this.db || rows.length === 0) return;
+
+    const stmt = this.db.prepare(
+      "INSERT OR REPLACE INTO us_short_rates (maturity, date, rate) VALUES (?, ?, ?)"
+    );
+
+    this.db.run("BEGIN TRANSACTION");
+    for (const r of rows) {
+      stmt.run([maturity, r.date, r.rate]);
+    }
+    this.db.run("COMMIT");
+    stmt.free();
+    this.persist();
+  }
+
+  getUsShortRates(maturity: string, start?: string, end?: string): { date: string; rate: number }[] {
+    if (!this.db) return [];
+
+    const sql = start && end
+      ? "SELECT date, rate FROM us_short_rates WHERE maturity = ? AND date >= ? AND date <= ? ORDER BY date ASC"
+      : "SELECT date, rate FROM us_short_rates WHERE maturity = ? ORDER BY date ASC";
+    const stmt = this.db.prepare(sql);
+    const params = start && end ? [maturity, start, end] : [maturity];
+    stmt.bind(params);
+
+    const results: { date: string; rate: number }[] = [];
+    while (stmt.step()) {
+      const row = stmt.getAsObject();
+      results.push({ date: row.date as string, rate: row.rate as number });
+    }
+    stmt.free();
+    return results;
+  }
+
+  hasUsShortRates(maturity: string): boolean {
+    if (!this.db) return false;
+    const stmt = this.db.prepare("SELECT COUNT(*) as cnt FROM us_short_rates WHERE maturity = ?");
+    stmt.bind([maturity]);
+    stmt.step();
+    const row = stmt.getAsObject();
+    stmt.free();
+    return (row.cnt as number) > 0;
+  }
+
+  getUsShortRatesDateRange(maturity: string): { minDate: string; maxDate: string } | null {
+    if (!this.db) return null;
+    const stmt = this.db.prepare("SELECT MIN(date) as minDate, MAX(date) as maxDate FROM us_short_rates WHERE maturity = ?");
+    stmt.bind([maturity]);
+    stmt.step();
+    const row = stmt.getAsObject();
+    stmt.free();
+    if (!row.minDate || !row.maxDate) return null;
+    return { minDate: row.minDate as string, maxDate: row.maxDate as string };
   }
 
   // ---- Utility ----

@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { fetcher } from "../services/fetcher";
 import { cacheManager } from "../services/cache";
 import { MARKET_INDEXES } from "../services/marketIndex";
+import { db } from "../services/database";
 
 export const marketRouter = Router();
 
@@ -58,6 +59,32 @@ marketRouter.get("/indexes/:code/kline", async (req: Request, res: Response) => 
       cacheKey,
       () => fetcher.fetchIndexKline(code, start as string, endDate, periodStr as any),
       24 * 60 * 60 * 1000
+    );
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/market/us-rates/:maturity?start=&end= — 美债利率历史
+const VALID_MATURITIES = ["3M", "6M", "1Y", "10Y"];
+
+marketRouter.get("/us-rates/:maturity", async (req: Request, res: Response) => {
+  try {
+    const { maturity } = req.params;
+    if (!VALID_MATURITIES.includes(maturity)) {
+      res.status(400).json({ success: false, error: `Invalid maturity. Valid values: ${VALID_MATURITIES.join(", ")}` });
+      return;
+    }
+    const { start, end } = req.query;
+    const cacheKey = `us_rates_${maturity}_${start || "all"}_${end || "all"}`;
+    const data = await cacheManager.getOrFetch(
+      cacheKey,
+      async () => {
+        await db.init();
+        return db.getUsShortRates(maturity, start as string | undefined, end as string | undefined);
+      },
+      60 * 60 * 1000 // 1 hour TTL
     );
     res.json({ success: true, data });
   } catch (err: any) {

@@ -441,6 +441,30 @@ class StockDataFetcher {
     return flows;
   }
 
+  // 美债利率历史（新浪财经债券：US3MT / US6MT / US1YT / US10YT），返回每日收盘利率(%), 最多约1000个交易日
+  async fetchUsShortRateHistory(maturity: string = "3M"): Promise<{ date: string; rate: number }[]> {
+    const symbolByMaturity: Record<string, string> = {
+      "3M": "US3MT",
+      "6M": "US6MT",
+      "1Y": "US1YT",
+      "10Y": "US10YT",
+    };
+    const symbol = symbolByMaturity[maturity] || "US3MT";
+
+    await rateLimit();
+    const resp = await sinaApi.get("https://bond.finance.sina.com.cn/hq/gb/daily", {
+      params: { symbol },
+    });
+
+    const rows: { d: string; c: string }[] = resp.data?.result?.data || [];
+    return rows
+      .map((r) => {
+        const rate = parseFloat(r.c);
+        return { date: String(r.d).slice(0, 10), rate: isNaN(rate) ? NaN : rate };
+      })
+      .filter((r) => !isNaN(r.rate));
+  }
+
   async fetchIndexKline(
     symbol: string,
     startDate: string,

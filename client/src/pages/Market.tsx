@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import Plot from "react-plotly.js";
 import type { KlineData, KlinePeriod, RealtimeQuote, MacroIndicator } from "../types";
-import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators } from "../api/client";
+import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators, fetchUsRateHistory } from "../api/client";
 import StockChart from "../components/StockChart";
 
 export default function Market() {
@@ -12,6 +13,8 @@ export default function Market() {
   const [klineLoading, setKlineLoading] = useState(false);
   const [error, setError] = useState("");
   const [macro, setMacro] = useState<MacroIndicator[]>([]);
+  const [us10yRate, setUs10yRate] = useState<{ date: string; rate: number }[]>([]);
+  const [rateMaturity, setRateMaturity] = useState("10Y");
 
   const [dateRange, setDateRange] = useState(() => {
     const end = new Date();
@@ -42,10 +45,15 @@ export default function Market() {
         if (!cancelled) setMacro(list);
       })
       .catch(() => {});
+    fetchUsRateHistory(rateMaturity)
+      .then((data) => {
+        if (!cancelled) setUs10yRate(data);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [rateMaturity]);
 
   const loadKline = useCallback(async () => {
     if (!selected) return;
@@ -167,6 +175,65 @@ export default function Market() {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+              {us10yRate.length > 0 && (
+                <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-gray-300 font-medium">美债利率历史</span>
+                    {(["3M", "6M", "1Y", "10Y"] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setRateMaturity(m)}
+                        className={`px-2 py-0.5 text-[11px] rounded ${
+                          rateMaturity === m
+                            ? "bg-blue-700 text-white"
+                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  <Plot
+                    data={[{
+                      x: us10yRate.map((d) => d.date),
+                      y: us10yRate.map((d) => d.rate),
+                      type: "scatter",
+                      mode: "lines",
+                      name: `${rateMaturity} 美债利率`,
+                      line: { color: "#60a5fa", width: 1.5 },
+                    }]}
+                    layout={{
+                      paper_bgcolor: "transparent",
+                      plot_bgcolor: "transparent",
+                      font: { color: "#9ca3af", size: 10 },
+                      margin: { t: 10, r: 20, b: 30, l: 40 },
+                      height: 180,
+                      xaxis: {
+                        gridcolor: "#1f2937",
+                        tickmode: "auto",
+                        nticks: 6,
+                        tickangle: -30,
+                        automargin: true,
+                        rangeslider: { visible: false },
+                      },
+                      yaxis: {
+                        gridcolor: "#1f2937",
+                        side: "right",
+                        title: { text: "%", font: { size: 10 }, standoff: 0 },
+                      },
+                      showlegend: false,
+                      hovermode: "x unified",
+                      hoverlabel: {
+                        bgcolor: "#1f2937",
+                        bordercolor: "#374151",
+                        font: { color: "#e5e7eb", size: 11 },
+                      },
+                    }}
+                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+                    style={{ width: "100%" }}
+                  />
                 </div>
               )}
             </div>

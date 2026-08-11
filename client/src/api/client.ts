@@ -52,6 +52,17 @@ export async function fetchMacroIndicators(): Promise<MacroIndicator[]> {
   return data.data;
 }
 
+export async function fetchUsRateHistory(
+  maturity: string,
+  start?: string,
+  end?: string
+): Promise<{ date: string; rate: number }[]> {
+  const { data } = await api.get(`/market/us-rates/${maturity}`, {
+    params: { start, end },
+  });
+  return data.data;
+}
+
 export async function fetchIndexKline(
   code: string,
   start: string,

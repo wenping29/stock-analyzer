@@ -6,7 +6,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "sync:stocklist": "tsx src/cli/sync-stock-list.ts",
-    "export:stocklist": "tsx src/cli/export-stock-list.ts"
+    "export:stocklist": "tsx src/cli/export-stock-list.ts",
+    "sync:usrates": "tsx src/cli/sync-us-short-rates.ts"
   },
   "dependencies": {
     "@types/cron": "^2.0.1",
