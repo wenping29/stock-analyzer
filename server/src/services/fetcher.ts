@@ -465,6 +465,81 @@ class StockDataFetcher {
       .filter((r) => !isNaN(r.rate));
   }
 
+  // 人民币利率历史 — 支持 SHIBOR_3M(东方财富) / CN_10Y(新浪债券)
+  async fetchCnRateHistory(type: string = "SHIBOR_3M"): Promise<{ date: string; rate: number }[]> {
+    if (type === "CN_10Y") {
+      return this.fetchCnBondHistory("CN10YT");
+    }
+    return this.fetchShiborHistory(type);
+  }
+
+  private async fetchCnBondHistory(symbol: string): Promise<{ date: string; rate: number }[]> {
+    await rateLimit();
+    const resp = await sinaApi.get("https://bond.finance.sina.com.cn/hq/gb/daily", {
+      params: { symbol },
+    });
+
+    const rows: { d: string; c: string }[] = resp.data?.result?.data || [];
+    return rows
+      .map((r) => {
+        const rate = parseFloat(r.c);
+        return { date: String(r.d).slice(0, 10), rate: isNaN(rate) ? NaN : rate };
+      })
+      .filter((r) => !isNaN(r.rate));
+  }
+
+  private async fetchShiborHistory(type: string): Promise<{ date: string; rate: number }[]> {
+    const indicatorIdByType: Record<string, string> = {
+      "SHIBOR_ON": "001",
+      "SHIBOR_1W": "101",
+      "SHIBOR_2W": "102",
+      "SHIBOR_1M": "201",
+      "SHIBOR_3M": "203",
+      "SHIBOR_6M": "206",
+      "SHIBOR_9M": "209",
+      "SHIBOR_1Y": "301",
+    };
+    const indicatorId = indicatorIdByType[type] || "203";
+
+    const allRows: { date: string; rate: number }[] = [];
+    const pageSize = 500;
+    let page = 1;
+    let total = 0;
+    let batch: any[] = [];
+
+    do {
+      await rateLimit();
+      const resp = await eastmoneyApi.get("https://datacenter-web.eastmoney.com/api/data/v1/get", {
+        params: {
+          reportName: "RPT_IMP_INTRESTRATEN",
+          columns: "ALL",
+          pageSize: String(pageSize),
+          pageNumber: String(page),
+          sortColumns: "REPORT_DATE",
+          sortTypes: "-1",
+          filter: `(MARKET_CODE="001")(CURRENCY_CODE="CNY")(INDICATOR_ID="${indicatorId}")`,
+        },
+      });
+
+      total = resp.data?.result?.count || 0;
+      batch = resp.data?.result?.data || [];
+
+      for (const r of batch) {
+        const rate = parseFloat(r.IR_RATE);
+        if (!isNaN(rate)) {
+          allRows.push({
+            date: String(r.REPORT_DATE).slice(0, 10),
+            rate,
+          });
+        }
+      }
+
+      page++;
+    } while (allRows.length < total && batch.length > 0);
+
+    return allRows.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
   async fetchIndexKline(
     symbol: string,
     startDate: string,
@@ -485,7 +560,7 @@ class StockDataFetcher {
       }
     }
 
-    if (period === "weekly" || period === "monthly") {
+    if (period === "weekly" || period === "monthly" || period === "quarterly" || period === "yearly") {
       try {
         const dailyData = await this.fetchIndexKline(symbol, startDate, endDate, "daily");
         if (dailyData.length > 0) {
@@ -704,6 +779,15 @@ class StockDataFetcher {
         const weekStart = new Date(dt);
         weekStart.setDate(dt.getDate() - dt.getDay());
         key = weekStart.toISOString().slice(0, 10).replace(/-/g, "");
+      } else if (period === "monthly") {
+        key = d.date.slice(0, 6);
+      } else if (period === "quarterly") {
+        const year = d.date.slice(0, 4);
+        const month = parseInt(d.date.slice(4, 6), 10);
+        const quarter = Math.ceil(month / 3);
+        key = year + "Q" + quarter;
+      } else if (period === "yearly") {
+        key = d.date.slice(0, 4);
       } else {
         key = d.date.slice(0, 6);
       }
@@ -748,6 +832,21 @@ class StockDataFetcher {
       });
     }
     return result;
+  }
+
+  async fetchIndexAllPeriods(symbol: string, startDate: string, endDate: string): Promise<Record<string, KlineData[]>> {
+    const dailyData = await this.fetchIndexKline(symbol, startDate, endDate, "daily");
+    if (dailyData.length === 0) {
+      return { daily: [], weekly: [], monthly: [], quarterly: [], yearly: [] };
+    }
+
+    return {
+      daily: dailyData,
+      weekly: this.aggregateToPeriod(dailyData, "weekly"),
+      monthly: this.aggregateToPeriod(dailyData, "monthly"),
+      quarterly: this.aggregateToPeriod(dailyData, "quarterly"),
+      yearly: this.aggregateToPeriod(dailyData, "yearly"),
+    };
   }
 }
 

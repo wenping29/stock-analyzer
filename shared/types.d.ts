@@ -1,4 +1,4 @@
-export type KlinePeriod = "60min" | "daily" | "weekly" | "monthly";
+export type KlinePeriod = "60min" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
 export interface KlineData {
     date: string;
     open: number;

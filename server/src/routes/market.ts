@@ -91,3 +91,69 @@ marketRouter.get("/us-rates/:maturity", async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/market/cn-rates/:type?start=&end= — 人民币利率历史
+const VALID_CN_RATE_TYPES = ["SHIBOR_ON", "SHIBOR_1W", "SHIBOR_2W", "SHIBOR_1M", "SHIBOR_3M", "SHIBOR_6M", "SHIBOR_9M", "SHIBOR_1Y", "CN_10Y"];
+
+marketRouter.get("/cn-rates/:type", async (req: Request, res: Response) => {
+  try {
+    const { type } = req.params;
+    if (!VALID_CN_RATE_TYPES.includes(type)) {
+      res.status(400).json({ success: false, error: `Invalid type. Valid values: ${VALID_CN_RATE_TYPES.join(", ")}` });
+      return;
+    }
+    const { start, end } = req.query;
+    const cacheKey = `cn_rates_${type}_${start || "all"}_${end || "all"}`;
+    const data = await cacheManager.getOrFetch(
+      cacheKey,
+      async () => {
+        await db.init();
+        return db.getCnRates(type, start as string | undefined, end as string | undefined);
+      },
+      60 * 60 * 1000 // 1 hour TTL
+    );
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/market/index-data/:period?codes=&start=&end= — 大盘指标周期数据
+const VALID_INDEX_PERIODS = ["daily", "weekly", "monthly", "quarterly", "yearly"];
+const INDEX_NAME_MAP: Record<string, string> = {
+  sh000001: "上证指数",
+  sh000300: "沪深300",
+  sz399006: "创业板指",
+  sh000688: "科创50",
+  bj899050: "北证50",
+};
+
+marketRouter.get("/index-data/:period", async (req: Request, res: Response) => {
+  try {
+    const { period } = req.params;
+    if (!VALID_INDEX_PERIODS.includes(period)) {
+      res.status(400).json({ success: false, error: `Invalid period. Valid values: ${VALID_INDEX_PERIODS.join(", ")}` });
+      return;
+    }
+    const { codes, start, end } = req.query;
+    const codeList = (codes as string)?.split(",").filter(Boolean) || Object.keys(INDEX_NAME_MAP);
+    const cacheKey = `index_data_${period}_${codeList.join("|")}_${start || "all"}_${end || "all"}`;
+
+    const data = await cacheManager.getOrFetch(
+      cacheKey,
+      async () => {
+        await db.init();
+        const results: Record<string, { name: string; data: any[] }> = {};
+        for (const code of codeList) {
+          const rows = db.getIndexPeriod(period, code, start as string | undefined, end as string | undefined);
+          results[code] = { name: INDEX_NAME_MAP[code] || code, data: rows };
+        }
+        return results;
+      },
+      60 * 60 * 1000
+    );
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});

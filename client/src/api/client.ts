@@ -63,6 +63,17 @@ export async function fetchUsRateHistory(
   return data.data;
 }
 
+export async function fetchCnRateHistory(
+  type: string,
+  start?: string,
+  end?: string
+): Promise<{ date: string; rate: number }[]> {
+  const { data } = await api.get(`/market/cn-rates/${type}`, {
+    params: { start, end },
+  });
+  return data.data;
+}
+
 export async function fetchIndexKline(
   code: string,
   start: string,
@@ -151,4 +162,16 @@ export async function runGridSearch(config: OptimizationConfig): Promise<{ data:
 export async function runWalkForward(config: WalkForwardConfig): Promise<{ data: WalkForwardResult[]; meta: any }> {
   const resp = await api.post("/optimization/walk-forward", config);
   return { data: resp.data.data, meta: resp.data.meta };
+}
+
+export async function fetchIndexPeriodData(
+  period: string,
+  codes?: string[],
+  start?: string,
+  end?: string
+): Promise<Record<string, { name: string; data: { date: string; open: number; high: number; low: number; close: number; volume: number; amount: number }[] }>> {
+  const { data } = await api.get(`/market/index-data/${period}`, {
+    params: { codes: codes?.join(","), start, end },
+  });
+  return data.data;
 }

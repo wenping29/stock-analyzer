@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Plot from "react-plotly.js";
 import type { KlineData, KlinePeriod, RealtimeQuote, MacroIndicator } from "../types";
-import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators, fetchUsRateHistory } from "../api/client";
+import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators, fetchUsRateHistory, fetchCnRateHistory, fetchIndexPeriodData } from "../api/client";
 import StockChart from "../components/StockChart";
 
 export default function Market() {
@@ -15,6 +15,10 @@ export default function Market() {
   const [macro, setMacro] = useState<MacroIndicator[]>([]);
   const [us10yRate, setUs10yRate] = useState<{ date: string; rate: number }[]>([]);
   const [rateMaturity, setRateMaturity] = useState("10Y");
+  const [cnRate, setCnRate] = useState<{ date: string; rate: number }[]>([]);
+  const [cnRateType, setCnRateType] = useState("SHIBOR_3M");
+  const [indexPeriod, setIndexPeriod] = useState("daily");
+  const [indexPeriodData, setIndexPeriodData] = useState<Record<string, { name: string; data: { date: string; close: number }[] }>>({});
 
   const [dateRange, setDateRange] = useState(() => {
     const end = new Date();
@@ -50,10 +54,15 @@ export default function Market() {
         if (!cancelled) setUs10yRate(data);
       })
       .catch(() => {});
+    fetchCnRateHistory(cnRateType)
+      .then((data) => {
+        if (!cancelled) setCnRate(data);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [rateMaturity]);
+  }, [rateMaturity, cnRateType]);
 
   const loadKline = useCallback(async () => {
     if (!selected) return;
@@ -76,6 +85,16 @@ export default function Market() {
   useEffect(() => {
     loadKline();
   }, [loadKline]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchIndexPeriodData(indexPeriod)
+      .then((data) => {
+        if (!cancelled) setIndexPeriodData(data);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [indexPeriod]);
 
   const up = (v?: number) => (v ?? 0) >= 0;
 
@@ -224,6 +243,128 @@ export default function Market() {
                         title: { text: "%", font: { size: 10 }, standoff: 0 },
                       },
                       showlegend: false,
+                      hovermode: "x unified",
+                      hoverlabel: {
+                        bgcolor: "#1f2937",
+                        bordercolor: "#374151",
+                        font: { color: "#e5e7eb", size: 11 },
+                      },
+                    }}
+                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              )}
+              {cnRate.length > 0 && (
+                <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-gray-300 font-medium">人民币利率历史</span>
+                    {(["SHIBOR_3M", "SHIBOR_6M", "SHIBOR_1Y", "CN_10Y"] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setCnRateType(t)}
+                        className={`px-2 py-0.5 text-[11px] rounded ${
+                          cnRateType === t
+                            ? "bg-blue-700 text-white"
+                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                        }`}
+                      >
+                        {t === "SHIBOR_3M" ? "SHIBOR 3M" : t === "SHIBOR_6M" ? "SHIBOR 6M" : t === "SHIBOR_1Y" ? "SHIBOR 1Y" : "中债 10Y"}
+                      </button>
+                    ))}
+                  </div>
+                  <Plot
+                    data={[{
+                      x: cnRate.map((d) => d.date),
+                      y: cnRate.map((d) => d.rate),
+                      type: "scatter",
+                      mode: "lines",
+                      name: `${cnRateType} 利率`,
+                      line: { color: "#fbbf24", width: 1.5 },
+                    }]}
+                    layout={{
+                      paper_bgcolor: "transparent",
+                      plot_bgcolor: "transparent",
+                      font: { color: "#9ca3af", size: 10 },
+                      margin: { t: 10, r: 20, b: 30, l: 40 },
+                      height: 180,
+                      xaxis: {
+                        gridcolor: "#1f2937",
+                        tickmode: "auto",
+                        nticks: 6,
+                        tickangle: -30,
+                        automargin: true,
+                        rangeslider: { visible: false },
+                      },
+                      yaxis: {
+                        gridcolor: "#1f2937",
+                        side: "right",
+                        title: { text: "%", font: { size: 10 }, standoff: 0 },
+                      },
+                      showlegend: false,
+                      hovermode: "x unified",
+                      hoverlabel: {
+                        bgcolor: "#1f2937",
+                        bordercolor: "#374151",
+                        font: { color: "#e5e7eb", size: 11 },
+                      },
+                    }}
+                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              )}
+              {Object.keys(indexPeriodData).length > 0 && (
+                <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-gray-300 font-medium">大盘指标周期数据（归一化 %）</span>
+                    {(["daily", "weekly", "monthly", "quarterly", "yearly"] as const).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setIndexPeriod(p)}
+                        className={`px-2 py-0.5 text-[11px] rounded ${
+                          indexPeriod === p
+                            ? "bg-blue-700 text-white"
+                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                        }`}
+                      >
+                        {p === "daily" ? "日" : p === "weekly" ? "周" : p === "monthly" ? "月" : p === "quarterly" ? "季" : "年"}
+                      </button>
+                    ))}
+                  </div>
+                  <Plot
+                    data={Object.entries(indexPeriodData).map(([code, info]) => {
+                      const firstClose = info.data.length > 0 ? info.data[0].close : 1;
+                      return {
+                        x: info.data.map((d) => d.date),
+                        y: info.data.map((d) => ((d.close / firstClose) - 1) * 100),
+                        type: "scatter",
+                        mode: "lines",
+                        name: info.name,
+                        line: { width: 1.5 },
+                      };
+                    })}
+                    layout={{
+                      paper_bgcolor: "transparent",
+                      plot_bgcolor: "transparent",
+                      font: { color: "#9ca3af", size: 10 },
+                      margin: { t: 30, r: 50, b: 30, l: 50 },
+                      height: 250,
+                      xaxis: {
+                        gridcolor: "#1f2937",
+                        tickmode: "auto",
+                        nticks: 6,
+                        tickangle: -30,
+                        automargin: true,
+                        rangeslider: { visible: false },
+                      },
+                      yaxis: {
+                        gridcolor: "#1f2937",
+                        side: "right",
+                        title: { text: "%", font: { size: 10 }, standoff: 0 },
+                      },
+                      showlegend: true,
+                      legend: { orientation: "h", y: -0.2, font: { size: 10 }, bgcolor: "rgba(0,0,0,0)" },
                       hovermode: "x unified",
                       hoverlabel: {
                         bgcolor: "#1f2937",
