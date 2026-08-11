@@ -38,6 +38,7 @@ export interface RealtimeQuote {
   high: number;        // 最高价
   low: number;         // 最低价
   amount?: number;     // 成交额
+  mainInflow?: number; // 主力资金净流入（元，正=流入 负=流出）
 }
 
 // ---- Macro Indicators (大盘行情叠加标签) ----

@@ -99,6 +99,15 @@ export default function Market() {
                 {up(idx.changePct) ? "+" : ""}
                 {idx.changePct.toFixed(2)}%
               </p>
+              <p
+                className={`font-mono text-[11px] ${
+                  (idx.mainInflow ?? 0) >= 0 ? "text-red-400" : "text-green-400"
+                }`}
+              >
+                {idx.mainInflow == null
+                  ? "净流入 --"
+                  : `净流入 ${idx.mainInflow >= 0 ? "+" : ""}${(idx.mainInflow / 1e8).toFixed(2)}亿`}
+              </p>
             </button>
           ))}
         </div>

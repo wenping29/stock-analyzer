@@ -410,6 +410,37 @@ class StockDataFetcher {
     return results;
   }
 
+  // 指数主力资金净流入（东财 fflow 日线接口），返回 code -> 主力净流入(元, 正=流入 负=流出)
+  async fetchIndexCapitalFlow(symbols: string[]): Promise<Map<string, number>> {
+    const flows = new Map<string, number>();
+    for (const sym of symbols) {
+      const secid = sym.startsWith("sh") ? `1.${sym.slice(2)}` : `0.${sym.slice(2)}`;
+      try {
+        await rateLimit();
+        const resp = await eastmoneyApi.get(
+          "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get",
+          {
+            params: {
+              lmt: "1",
+              klt: "101",
+              secid,
+              fields1: "f1,f2,f3,f7",
+              fields2: "f51,f52,f53,f54,f55,f56",
+            },
+          }
+        );
+        const klines: string[] = resp.data?.data?.klines || [];
+        if (klines.length > 0) {
+          const main = parseFloat(klines[0].split(",")[1]);
+          if (!isNaN(main)) flows.set(sym, main);
+        }
+      } catch (err) {
+        console.warn(`[fetcher] capital flow failed for ${sym}: ${(err as Error).message}`);
+      }
+    }
+    return flows;
+  }
+
   async fetchIndexKline(
     symbol: string,
     startDate: string,

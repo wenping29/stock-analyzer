@@ -13,11 +13,17 @@ marketRouter.get("/indexes", async (_req: Request, res: Response) => {
       () => fetcher.fetchIndexQuote(MARKET_INDEXES.map((i) => i.code)),
       60 * 1000 // 1min TTL
     );
+    const flows = await cacheManager.getOrFetch(
+      "market_index_flow_v1",
+      () => fetcher.fetchIndexCapitalFlow(MARKET_INDEXES.map((i) => i.code)),
+      60 * 1000 // 1min TTL
+    );
     // 名称以本地配置为准，避免外部接口编码问题导致的乱码
     const nameByCode = new Map(MARKET_INDEXES.map((i) => [i.code, i.name]));
     const data = quotes.map((q) => ({
       ...q,
       name: nameByCode.get(q.code) || q.name,
+      mainInflow: flows.get(q.code),
     }));
     res.json({ success: true, data });
   } catch (err: any) {
