@@ -15,6 +15,7 @@ import type {
   OptimizationResult,
   WalkForwardConfig,
   WalkForwardResult,
+  RealtimeQuote,
 } from "../types";
 
 const api = axios.create({
@@ -30,6 +31,13 @@ export async function fetchStockList(type: StockListType = "all"): Promise<Stock
 
 export async function searchStock(q: string): Promise<StockInfo[]> {
   const { data } = await api.get("/stock/search", { params: { q } });
+  return data.data;
+}
+
+export async function fetchStockDetail(
+  code: string
+): Promise<{ info: StockInfo; quote: RealtimeQuote | null }> {
+  const { data } = await api.get(`/stock/${code}`);
   return data.data;
 }
 

@@ -2,6 +2,7 @@ export type {
   KlinePeriod,
   KlineData,
   StockInfo,
+  RealtimeQuote,
   IndicatorResult,
   Signal,
   RuleCondition,

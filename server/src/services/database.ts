@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import initSqlJs, { Database as SqlJsDatabase, Statement, SqlJsStatic } from "sql.js";
-import type { KlineData, Trade, BacktestResult, ScreeningResult, MonitorJob } from "@shared/types";
+import type { KlineData, Trade, BacktestResult, ScreeningResult, MonitorJob, StockInfo } from "@shared/types";
 
 const DB_PATH = path.join(__dirname, "../../data/stock_data.db");
 
@@ -373,6 +373,24 @@ class StockDatabase {
     const row = stmt.getAsObject();
     stmt.free();
     return (row.cnt as number) || 0;
+  }
+
+  getStockByCode(code: string): StockInfo | null {
+    if (!this.db) return null;
+    const stmt = this.db.prepare(
+      "SELECT code, name, market, industry FROM stock_list WHERE code = ?"
+    );
+    stmt.bind([code]);
+    let row: any = null;
+    if (stmt.step()) row = stmt.getAsObject();
+    stmt.free();
+    if (!row) return null;
+    return {
+      code: row.code as string,
+      name: row.name as string,
+      market: (row.market as string) || undefined,
+      industry: (row.industry as string) || undefined,
+    };
   }
 
   // ---- Utility ----

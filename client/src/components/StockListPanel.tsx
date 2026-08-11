@@ -140,8 +140,18 @@ export default function StockListPanel() {
                       selected?.stock.code === s.code ? "bg-blue-900/40" : ""
                     }`}
                   >
-                    <span className="text-gray-300 truncate">{s.name}</span>
+                    <span className="text-gray-300 truncate flex-1">{s.name}</span>
                     <span className="font-mono text-gray-500">{s.code}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/stock/${s.code}`);
+                      }}
+                      title={`${s.name} 详情`}
+                      className="ml-2 px-1.5 py-0.5 text-xs rounded bg-gray-800 text-gray-400 hover:bg-blue-700 hover:text-white"
+                    >
+                      详情
+                    </button>
                   </li>
                 ))}
                 {pageItems.length === 0 && (

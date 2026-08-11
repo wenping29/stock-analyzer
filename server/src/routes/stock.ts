@@ -1,9 +1,24 @@
 import { Router, Request, Response } from "express";
+import type { StockInfo } from "@shared/types";
 import { fetcher } from "../services/fetcher";
 import { cacheManager } from "../services/cache";
 import { getFilteredStockList } from "../services/stockList";
+import { db } from "../services/database";
+import { realtimeQuotes } from "../services/realtime";
 
 export const stockRouter = Router();
+
+function boardOf(code: string): string {
+  if (/^688|^689/.test(code)) return "科创板";
+  if (/^300|^301/.test(code)) return "创业板";
+  if (/^6/.test(code)) return "沪市A股";
+  if (/^[03]/.test(code)) return "深市A股";
+  if (/^920|^8/.test(code)) return "北交所";
+  if (/^900/.test(code)) return "沪市B股";
+  if (/^200/.test(code)) return "深市B股";
+  if (/^4/.test(code)) return "新三板";
+  return "其他";
+}
 
 // GET /api/stock/list?type=all|a|b|sh|sz|bj|chinext|star|neeq — 从本地数据库获取股票列表
 stockRouter.get("/list", async (req: Request, res: Response) => {
@@ -45,6 +60,23 @@ stockRouter.get("/:code/kline", async (req: Request, res: Response) => {
       24 * 60 * 60 * 1000
     );
     res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/stock/:code — 股票详情（基本信息 + 实时行情）
+stockRouter.get("/:code", async (req: Request, res: Response) => {
+  try {
+    const { code } = req.params;
+    await db.init();
+    let info = db.getStockByCode(code);
+    if (!info) {
+      info = { code, name: code, market: undefined, industry: undefined } as StockInfo;
+    }
+    info.board = boardOf(code);
+    const quote = realtimeQuotes.get(code) || null;
+    res.json({ success: true, data: { info, quote } });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -4,6 +4,7 @@ import Screener from "./pages/Screener";
 import Backtest from "./pages/Backtest";
 import Optimization from "./pages/Optimization";
 import Monitoring from "./pages/Monitoring";
+import StockDetail from "./pages/StockDetail";
 import StockListPanel from "./components/StockListPanel";
 import { StockSelectionProvider } from "./components/StockSelectionContext";
 
@@ -43,6 +44,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/indicators" replace />} />
               <Route path="/indicators" element={<Indicators />} />
+              <Route path="/stock/:code" element={<StockDetail />} />
               <Route path="/screener" element={<Screener />} />
               <Route path="/backtest" element={<Backtest />} />
               <Route path="/optimization" element={<Optimization />} />
