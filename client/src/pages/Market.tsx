@@ -17,15 +17,13 @@ export default function Market() {
   const [rateMaturity, setRateMaturity] = useState("10Y");
   const [cnRate, setCnRate] = useState<{ date: string; rate: number }[]>([]);
   const [cnRateType, setCnRateType] = useState("SHIBOR_3M");
-  const [indexPeriod, setIndexPeriod] = useState("daily");
+  const [unifiedPeriod, setUnifiedPeriod] = useState("daily");
   const [indexPeriodData, setIndexPeriodData] = useState<Record<string, { name: string; data: { date: string; close: number }[] }>>({});
   const [fxPeriod, setFxPeriod] = useState("daily");
   const [fxData, setFxData] = useState<{ date: string; open: number; high: number; low: number; close: number }[]>([]);
   const [goldPeriod, setGoldPeriod] = useState("daily");
   const [goldData, setGoldData] = useState<{ date: string; open: number; high: number; low: number; close: number }[]>([]);
-  const [oilPeriod, setOilPeriod] = useState("daily");
   const [oilData, setOilData] = useState<{ date: string; open: number; high: number; low: number; close: number }[]>([]);
-  const [cn10yPeriod, setCn10yPeriod] = useState("daily");
   const [cn10yData, setCn10yData] = useState<{ date: string; open: number; high: number; low: number; close: number }[]>([]);
 
   const [dateRange, setDateRange] = useState(() => {
@@ -96,53 +94,33 @@ export default function Market() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchIndexPeriodData(indexPeriod)
-      .then((data) => {
-        if (!cancelled) setIndexPeriodData(data);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [indexPeriod]);
-
-  useEffect(() => {
-    let cancelled = false;
     fetchFxCnyUsd(fxPeriod)
-      .then((data) => {
-        if (!cancelled) setFxData(data);
-      })
+      .then((data) => { if (!cancelled) setFxData(data); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [fxPeriod]);
 
   useEffect(() => {
     let cancelled = false;
+    fetchIndexPeriodData(unifiedPeriod)
+      .then((data) => { if (!cancelled) setIndexPeriodData(data); })
+      .catch(() => {});
+    fetchCrudeOil(unifiedPeriod)
+      .then((data) => { if (!cancelled) setOilData(data); })
+      .catch(() => {});
+    fetchCn10y(unifiedPeriod)
+      .then((data) => { if (!cancelled) setCn10yData(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [unifiedPeriod]);
+
+  useEffect(() => {
+    let cancelled = false;
     fetchGoldPrice(goldPeriod)
-      .then((data) => {
-        if (!cancelled) setGoldData(data);
-      })
+      .then((data) => { if (!cancelled) setGoldData(data); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [goldPeriod]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchCrudeOil(oilPeriod)
-      .then((data) => {
-        if (!cancelled) setOilData(data);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [oilPeriod]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchCn10y(cn10yPeriod)
-      .then((data) => {
-        if (!cancelled) setCn10yData(data);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [cn10yPeriod]);
 
   const up = (v?: number) => (v ?? 0) >= 0;
 
@@ -244,65 +222,6 @@ export default function Market() {
                   ))}
                 </div>
               )}
-              {us10yRate.length > 0 && (
-                <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-gray-300 font-medium">美债利率历史</span>
-                    {(["3M", "6M", "1Y", "10Y"] as const).map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => setRateMaturity(m)}
-                        className={`px-2 py-0.5 text-[11px] rounded ${
-                          rateMaturity === m
-                            ? "bg-blue-700 text-white"
-                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                        }`}
-                      >
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                  <Plot
-                    data={[{
-                      x: us10yRate.map((d) => d.date),
-                      y: us10yRate.map((d) => d.rate),
-                      type: "scatter",
-                      mode: "lines",
-                      name: `${rateMaturity} 美债利率`,
-                      line: { color: "#60a5fa", width: 1.5 },
-                    }]}
-                    layout={{
-                      paper_bgcolor: "transparent",
-                      plot_bgcolor: "transparent",
-                      font: { color: "#9ca3af", size: 10 },
-                      margin: { t: 10, r: 20, b: 30, l: 40 },
-                      height: 180,
-                      xaxis: {
-                        gridcolor: "#1f2937",
-                        tickmode: "auto",
-                        nticks: 6,
-                        tickangle: -30,
-                        automargin: true,
-                        rangeslider: { visible: false },
-                      },
-                      yaxis: {
-                        gridcolor: "#1f2937",
-                        side: "right",
-                        title: { text: "%", font: { size: 10 }, standoff: 0 },
-                      },
-                      showlegend: false,
-                      hovermode: "x unified",
-                      hoverlabel: {
-                        bgcolor: "#1f2937",
-                        bordercolor: "#374151",
-                        font: { color: "#e5e7eb", size: 11 },
-                      },
-                    }}
-                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-              )}
               {cnRate.length > 0 && (
                 <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
                   <div className="flex items-center gap-2 mb-2">
@@ -364,14 +283,14 @@ export default function Market() {
               )}
               {Object.keys(indexPeriodData).length > 0 && (
                 <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-gray-300 font-medium">大盘指标周期数据（归一化 %）</span>
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="text-xs text-gray-300 font-medium">综合归一化对比 (%)</span>
                     {(["daily", "weekly", "monthly", "quarterly", "yearly"] as const).map((p) => (
                       <button
                         key={p}
-                        onClick={() => setIndexPeriod(p)}
+                        onClick={() => setUnifiedPeriod(p)}
                         className={`px-2 py-0.5 text-[11px] rounded ${
-                          indexPeriod === p
+                          unifiedPeriod === p
                             ? "bg-blue-700 text-white"
                             : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                         }`}
@@ -379,29 +298,73 @@ export default function Market() {
                         {p === "daily" ? "日" : p === "weekly" ? "周" : p === "monthly" ? "月" : p === "quarterly" ? "季" : "年"}
                       </button>
                     ))}
+                    <span className="text-[10px] text-gray-500 ml-2">美债期限:</span>
+                    {(["3M", "6M", "1Y", "10Y"] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setRateMaturity(m)}
+                        className={`px-1.5 py-0.5 text-[11px] rounded ${
+                          rateMaturity === m
+                            ? "bg-blue-700 text-white"
+                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
                   </div>
                   <Plot
-                    data={Object.entries(indexPeriodData).map(([code, info]) => {
-                      const firstClose = info.data.length > 0 ? info.data[0].close : 1;
-                      return {
-                        x: info.data.map((d) => d.date),
-                        y: info.data.map((d) => ((d.close / firstClose) - 1) * 100),
-                        type: "scatter",
-                        mode: "lines",
-                        name: info.name,
-                        line: { width: 1.5 },
-                      };
-                    })}
+                    data={[
+                      // 大盘指数（归一化）
+                      ...Object.entries(indexPeriodData).map(([code, info]) => {
+                        const firstClose = info.data.length > 0 ? info.data[0].close : 1;
+                        return {
+                          x: info.data.map((d) => d.date),
+                          y: info.data.map((d) => ((d.close / firstClose) - 1) * 100),
+                          type: "scatter" as const,
+                          mode: "lines" as const,
+                          name: info.name,
+                          line: { width: 1.5 },
+                        };
+                      }),
+                      // 美债利率（归一化）
+                      ...(us10yRate.length > 0 ? [{
+                        x: us10yRate.map((d) => d.date),
+                        y: us10yRate.length > 0 ? us10yRate.map((d) => ((d.rate / us10yRate[0].rate) - 1) * 100) : [],
+                        type: "scatter" as const,
+                        mode: "lines" as const,
+                        name: `美债 ${rateMaturity}`,
+                        line: { color: "#60a5fa", width: 1.5 },
+                      }] : []),
+                      // 中债10Y（归一化）
+                      ...(cn10yData.length > 0 ? [{
+                        x: cn10yData.map((d) => d.date),
+                        y: cn10yData.map((d) => ((d.close / cn10yData[0].close) - 1) * 100),
+                        type: "scatter" as const,
+                        mode: "lines" as const,
+                        name: "中债10Y",
+                        line: { color: "#f43f5e", width: 1.5 },
+                      }] : []),
+                      // 原油期货（归一化）
+                      ...(oilData.length > 0 ? [{
+                        x: oilData.map((d) => d.date),
+                        y: oilData.map((d) => ((d.close / oilData[0].close) - 1) * 100),
+                        type: "scatter" as const,
+                        mode: "lines" as const,
+                        name: "原油期货",
+                        line: { color: "#10b981", width: 1.5 },
+                      }] : []),
+                    ]}
                     layout={{
                       paper_bgcolor: "transparent",
                       plot_bgcolor: "transparent",
                       font: { color: "#9ca3af", size: 10 },
-                      margin: { t: 30, r: 50, b: 30, l: 50 },
-                      height: 250,
+                      margin: { t: 30, r: 50, b: 40, l: 50 },
+                      height: 350,
                       xaxis: {
                         gridcolor: "#1f2937",
                         tickmode: "auto",
-                        nticks: 6,
+                        nticks: 8,
                         tickangle: -30,
                         automargin: true,
                         rangeslider: { visible: false },
@@ -409,10 +372,12 @@ export default function Market() {
                       yaxis: {
                         gridcolor: "#1f2937",
                         side: "right",
-                        title: { text: "%", font: { size: 10 }, standoff: 0 },
+                        title: { text: "归一化涨跌 %", font: { size: 10 }, standoff: 0 },
+                        zeroline: true,
+                        zerolinecolor: "#374151",
                       },
                       showlegend: true,
-                      legend: { orientation: "h", y: -0.2, font: { size: 10 }, bgcolor: "rgba(0,0,0,0)" },
+                      legend: { orientation: "h", y: -0.15, font: { size: 9 }, bgcolor: "rgba(0,0,0,0)" },
                       hovermode: "x unified",
                       hoverlabel: {
                         bgcolor: "#1f2937",
@@ -529,124 +494,6 @@ export default function Market() {
                         gridcolor: "#1f2937",
                         side: "right",
                         title: { text: "USD/盎司", font: { size: 10 }, standoff: 0 },
-                      },
-                      showlegend: false,
-                      hovermode: "x unified",
-                      hoverlabel: {
-                        bgcolor: "#1f2937",
-                        bordercolor: "#374151",
-                        font: { color: "#e5e7eb", size: 11 },
-                      },
-                    }}
-                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-              )}
-              {oilData.length > 0 && (
-                <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-gray-300 font-medium">原油期货 (WTI, USD/桶)</span>
-                    {(["daily", "weekly", "monthly", "quarterly", "yearly"] as const).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setOilPeriod(p)}
-                        className={`px-2 py-0.5 text-[11px] rounded ${
-                          oilPeriod === p
-                            ? "bg-emerald-700 text-white"
-                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                        }`}
-                      >
-                        {p === "daily" ? "日" : p === "weekly" ? "周" : p === "monthly" ? "月" : p === "quarterly" ? "季" : "年"}
-                      </button>
-                    ))}
-                  </div>
-                  <Plot
-                    data={[{
-                      x: oilData.map((d) => d.date),
-                      y: oilData.map((d) => d.close),
-                      type: "scatter",
-                      mode: "lines",
-                      name: "Crude Oil",
-                      line: { color: "#10b981", width: 1.5 },
-                    }]}
-                    layout={{
-                      paper_bgcolor: "transparent",
-                      plot_bgcolor: "transparent",
-                      font: { color: "#9ca3af", size: 10 },
-                      margin: { t: 10, r: 30, b: 30, l: 50 },
-                      height: 180,
-                      xaxis: {
-                        gridcolor: "#1f2937",
-                        tickmode: "auto",
-                        nticks: 6,
-                        tickangle: -30,
-                        automargin: true,
-                        rangeslider: { visible: false },
-                      },
-                      yaxis: {
-                        gridcolor: "#1f2937",
-                        side: "right",
-                        title: { text: "USD/桶", font: { size: 10 }, standoff: 0 },
-                      },
-                      showlegend: false,
-                      hovermode: "x unified",
-                      hoverlabel: {
-                        bgcolor: "#1f2937",
-                        bordercolor: "#374151",
-                        font: { color: "#e5e7eb", size: 11 },
-                      },
-                    }}
-                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-              )}
-              {cn10yData.length > 0 && (
-                <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-gray-300 font-medium">中债10年期国债收益率 (%)</span>
-                    {(["daily", "weekly", "monthly", "quarterly", "yearly"] as const).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setCn10yPeriod(p)}
-                        className={`px-2 py-0.5 text-[11px] rounded ${
-                          cn10yPeriod === p
-                            ? "bg-rose-700 text-white"
-                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                        }`}
-                      >
-                        {p === "daily" ? "日" : p === "weekly" ? "周" : p === "monthly" ? "月" : p === "quarterly" ? "季" : "年"}
-                      </button>
-                    ))}
-                  </div>
-                  <Plot
-                    data={[{
-                      x: cn10yData.map((d) => d.date),
-                      y: cn10yData.map((d) => d.close),
-                      type: "scatter",
-                      mode: "lines",
-                      name: "CN 10Y",
-                      line: { color: "#f43f5e", width: 1.5 },
-                    }]}
-                    layout={{
-                      paper_bgcolor: "transparent",
-                      plot_bgcolor: "transparent",
-                      font: { color: "#9ca3af", size: 10 },
-                      margin: { t: 10, r: 30, b: 30, l: 50 },
-                      height: 180,
-                      xaxis: {
-                        gridcolor: "#1f2937",
-                        tickmode: "auto",
-                        nticks: 6,
-                        tickangle: -30,
-                        automargin: true,
-                        rangeslider: { visible: false },
-                      },
-                      yaxis: {
-                        gridcolor: "#1f2937",
-                        side: "right",
-                        title: { text: "%", font: { size: 10 }, standoff: 0 },
                       },
                       showlegend: false,
                       hovermode: "x unified",
