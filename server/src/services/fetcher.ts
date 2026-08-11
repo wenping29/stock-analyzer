@@ -91,6 +91,7 @@ class StockDataFetcher {
   ];
 
   private toSinaSymbol(symbol: string): string {
+    if (/^(sh|sz|bj)/i.test(symbol)) return symbol.toLowerCase();
     return symbol.startsWith("6") ? `sh${symbol}` : `sz${symbol}`;
   }
 
@@ -351,6 +352,118 @@ class StockDataFetcher {
       high: this.toNumber(item.f15),
       low: this.toNumber(item.f16),
     }));
+  }
+
+  // ---- Market indices (大盘指数) ----
+
+  // symbol like "sh000001" / "sz399001"; Sina hq API returns one line per symbol
+  async fetchIndexQuote(symbols: string[]): Promise<RealtimeQuote[]> {
+    const results: RealtimeQuote[] = [];
+    const sinaQuoteApi = createRetryableClient({
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+
+    for (let i = 0; i < symbols.length; i += 20) {
+      const chunk = symbols.slice(i, i + 20);
+      await rateLimit();
+      try {
+        const resp = await sinaQuoteApi.get<string>(
+          `https://hq.sinajs.cn/list=${chunk.join(",")}`,
+          { headers: { Referer: "https://finance.sina.com.cn/" } }
+        );
+        const lines = (resp.data || "").split(";").filter(Boolean);
+        for (const line of lines) {
+          const m = line.match(/hq_str_(\w+)="(.*)"/);
+          if (!m) continue;
+          const sym = m[1];
+          const parts = m[2].split(",");
+          if (parts.length < 10) continue;
+          const prevClose = parseFloat(parts[2]);
+          const price = parseFloat(parts[3]);
+          if (isNaN(price)) continue;
+          results.push({
+            code: sym,
+            name: parts[0] || sym,
+            market: sym.startsWith("sh") ? "SH" : "SZ",
+            price,
+            changePct: prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0,
+            open: parseFloat(parts[1]),
+            high: parseFloat(parts[4]),
+            low: parseFloat(parts[5]),
+            volume: parseFloat(parts[8]),
+            amount: parseFloat(parts[9]),
+          });
+        }
+      } catch {
+        /* skip failed batch */
+      }
+    }
+    return results;
+  }
+
+  async fetchIndexKline(
+    symbol: string,
+    startDate: string,
+    endDate: string,
+    period: KlinePeriod = "daily"
+  ): Promise<KlineData[]> {
+    const startStr = startDate.replace(/-/g, "");
+    const endStr = endDate.replace(/-/g, "");
+
+    if (period === "daily" || period === "60min") {
+      const scale = SINA_SCALE[period] ?? 240;
+      try {
+        const all = await this.fetchSinaKline(symbol, scale);
+        const filtered = all.filter((d) => d.date >= startStr && d.date <= endStr);
+        if (filtered.length > 0) return filtered;
+      } catch (e) {
+        console.warn(`[fetcher] Sina index ${period} failed for ${symbol}: ${(e as Error).message}`);
+      }
+    }
+
+    if (period === "weekly" || period === "monthly") {
+      try {
+        const dailyData = await this.fetchIndexKline(symbol, startDate, endDate, "daily");
+        if (dailyData.length > 0) {
+          const aggregated = this.aggregateToPeriod(dailyData, period);
+          if (aggregated.length > 0) return aggregated;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // EastMoney fallback (indices use secid like 1.000001 / 0.399001)
+    try {
+      const kltMap: Record<string, string> = { "60min": "60", daily: "101", weekly: "102", monthly: "103" };
+      const secid = symbol.startsWith("sh") ? `1.${symbol.slice(2)}` : `0.${symbol.slice(2)}`;
+      const params = {
+        fields1: "f1,f2,f3,f4,f5,f6",
+        fields2: "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+        klt: kltMap[period] || "101",
+        fqt: "1",
+        secid,
+        beg: startStr,
+        end: endStr,
+        lmt: "500",
+      };
+      await rateLimit();
+      const resp = await eastmoneyApi.get(this.eastmoneyKline, { params });
+      const klines: string[] = resp.data?.data?.klines || [];
+      const emData = klines.map((line: string) => {
+        const p = line.split(",");
+        return {
+          date: p[0],
+          open: parseFloat(p[1]),
+          close: parseFloat(p[2]),
+          high: parseFloat(p[3]),
+          low: parseFloat(p[4]),
+          volume: parseFloat(p[5]),
+          amount: parseFloat(p[6]),
+        };
+      });
+      if (emData.length > 0) return emData;
+    } catch { /* fall through */ }
+
+    return this.generateSyntheticKline(startDate, endDate, period);
   }
 
   private toNumber(v: any): number {

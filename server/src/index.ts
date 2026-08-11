@@ -6,6 +6,7 @@ import { screeningRouter } from "./routes/screening";
 import { backtestingRouter } from "./routes/backtesting";
 import { optimizationRouter } from "./routes/optimization";
 import { monitoringRouter } from "./routes/monitoring";
+import { marketRouter } from "./routes/market";
 import { monitoringScheduler } from "./monitoring/scheduler";
 import { realtimeQuotes } from "./services/realtime";
 import { startRealtimeServer } from "./realtime/server";
@@ -25,6 +26,7 @@ app.use("/api/screening", screeningRouter);
 app.use("/api/backtesting", backtestingRouter);
 app.use("/api/optimization", optimizationRouter);
 app.use("/api/monitoring", monitoringRouter);
+app.use("/api/market", marketRouter);
 
 const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

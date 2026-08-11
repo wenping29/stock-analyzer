@@ -36,3 +36,4 @@ npm-debug.log*
 *.tsbuildinfo
 
 stock_data.db
+server/data/stock_data.db

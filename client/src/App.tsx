@@ -4,6 +4,7 @@ import Screener from "./pages/Screener";
 import Backtest from "./pages/Backtest";
 import Optimization from "./pages/Optimization";
 import Monitoring from "./pages/Monitoring";
+import Market from "./pages/Market";
 import StockDetail from "./pages/StockDetail";
 import StockListPanel from "./components/StockListPanel";
 import { StockSelectionProvider } from "./components/StockSelectionContext";
@@ -12,6 +13,9 @@ function NavBar() {
   return (
     <nav className="flex items-center gap-6 px-6 py-3 bg-gray-900 border-b border-gray-800">
       <h1 className="text-lg font-bold text-blue-400">股票量化分析</h1>
+      <a href="/market" className="text-sm text-gray-300 hover:text-white">
+        大盘
+      </a>
       <a href="/indicators" className="text-sm text-gray-300 hover:text-white">
         技术指标
       </a>
@@ -43,6 +47,7 @@ export default function App() {
           <div className="flex-1 min-w-0">
             <Routes>
               <Route path="/" element={<Navigate to="/indicators" replace />} />
+              <Route path="/market" element={<Market />} />
               <Route path="/indicators" element={<Indicators />} />
               <Route path="/stock/:code" element={<StockDetail />} />
               <Route path="/screener" element={<Screener />} />

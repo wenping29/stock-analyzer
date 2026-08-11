@@ -41,6 +41,23 @@ export async function fetchStockDetail(
   return data.data;
 }
 
+export async function fetchMarketIndexes(): Promise<RealtimeQuote[]> {
+  const { data } = await api.get("/market/indexes");
+  return data.data;
+}
+
+export async function fetchIndexKline(
+  code: string,
+  start: string,
+  end: string,
+  period: KlinePeriod = "daily"
+): Promise<KlineData[]> {
+  const { data } = await api.get(`/market/indexes/${code}/kline`, {
+    params: { start, end, period },
+  });
+  return data.data;
+}
+
 export async function fetchKline(
   code: string,
   start: string,
