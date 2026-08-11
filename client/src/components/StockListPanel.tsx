@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import type { StockInfo } from "../types";
 import { fetchStockList } from "../api/client";
 import type { StockListType } from "../api/client";
@@ -27,6 +28,12 @@ export default function StockListPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const [page, setPage] = useState(1);
   const { selected, selectStock } = useStockSelection();
+  const navigate = useNavigate();
+
+  const handleSelectStock = (s: StockInfo) => {
+    selectStock(s);
+    navigate("/indicators");
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -98,15 +105,21 @@ export default function StockListPanel() {
             </div>
           </div>
           <div className="p-3 border-b border-gray-800 shrink-0">
-            <select
-              value={type}
-              onChange={(e) => handleTypeChange(e.target.value as StockListType)}
-              className="w-full mb-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
-            >
+            <div className="flex flex-wrap gap-1 mb-2">
               {STOCK_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+                <button
+                  key={t.value}
+                  onClick={() => handleTypeChange(t.value)}
+                  className={`px-2 py-1 text-xs rounded ${
+                    type === t.value
+                      ? "bg-blue-700 text-white"
+                      : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  }`}
+                >
+                  {t.label}
+                </button>
               ))}
-            </select>
+            </div>
             <input
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
@@ -122,7 +135,7 @@ export default function StockListPanel() {
                 {pageItems.map((s) => (
                   <li
                     key={s.code}
-                    onClick={() => selectStock(s)}
+                    onClick={() => handleSelectStock(s)}
                     className={`flex items-center justify-between px-3 py-1.5 hover:bg-gray-800 text-sm cursor-pointer ${
                       selected?.stock.code === s.code ? "bg-blue-900/40" : ""
                     }`}
