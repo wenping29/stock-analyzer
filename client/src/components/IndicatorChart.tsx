@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import Plot from "react-plotly.js";
 import type { KlineData, IndicatorResult } from "../types";
+import FullscreenChart from "./FullscreenChart";
 
 interface Props {
   klineData: KlineData[];
@@ -54,31 +55,35 @@ export default function IndicatorChart({ klineData, indicator, height = 200 }: P
   }, [klineData, indicator]);
 
   return (
-    <Plot
-      data={traces}
-      layout={{
-        title: `${indicator.name} (${Object.entries(indicator.params).map(([k, v]) => `${k}=${v}`).join(", ")})`,
-        paper_bgcolor: "#111827",
-        plot_bgcolor: "#111827",
-        font: { color: "#9ca3af" },
-        xaxis: {
-          type: "category",
-          gridcolor: "#1f2937",
-          tickmode: "auto",
-          nticks: 8,
-          tickangle: -30,
-          tickfont: { size: 10 },
-          automargin: true,
-        },
-        yaxis: { gridcolor: "#1f2937", side: "right" },
-        margin: { t: 30, r: 40, b: 55, l: 40 },
-        height,
-        showlegend: true,
-        legend: { orientation: "h", y: 1.3, font: { size: 10 } },
-        shapes,
-      }}
-      config={{ responsive: true, displayModeBar: false }}
-      style={{ width: "100%" }}
-    />
+    <FullscreenChart title={indicator.name}>
+      {(isFullscreen) => (
+        <Plot
+          data={traces}
+          layout={{
+            title: `${indicator.name} (${Object.entries(indicator.params).map(([k, v]) => `${k}=${v}`).join(", ")})`,
+            paper_bgcolor: "#111827",
+            plot_bgcolor: "#111827",
+            font: { color: "#9ca3af" },
+            xaxis: {
+              type: "category",
+              gridcolor: "#1f2937",
+              tickmode: "auto",
+              nticks: 8,
+              tickangle: -30,
+              tickfont: { size: 10 },
+              automargin: true,
+            },
+            yaxis: { gridcolor: "#1f2937", side: "right" },
+            margin: { t: 30, r: 40, b: 55, l: 40 },
+            height: isFullscreen ? Math.max(400, window.innerHeight - 120) : height,
+            showlegend: true,
+            legend: { orientation: "h", y: 1.3, font: { size: 10 } },
+            shapes,
+          }}
+          config={{ responsive: true, displayModeBar: false }}
+          style={{ width: "100%" }}
+        />
+      )}
+    </FullscreenChart>
   );
 }
