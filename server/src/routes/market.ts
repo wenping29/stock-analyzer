@@ -9,7 +9,7 @@ export const marketRouter = Router();
 marketRouter.get("/indexes", async (_req: Request, res: Response) => {
   try {
     const quotes = await cacheManager.getOrFetch(
-      "market_index_quotes_v2",
+      "market_index_quotes_v3",
       () => fetcher.fetchIndexQuote(MARKET_INDEXES.map((i) => i.code)),
       60 * 1000 // 1min TTL
     );
@@ -29,7 +29,7 @@ marketRouter.get("/indexes", async (_req: Request, res: Response) => {
 marketRouter.get("/macro", async (_req: Request, res: Response) => {
   try {
     const data = await cacheManager.getOrFetch(
-      "market_macro_v1",
+      "market_macro_v2",
       () => fetcher.fetchMacroIndicators(),
       60 * 1000 // 1min TTL
     );

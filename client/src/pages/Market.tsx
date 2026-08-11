@@ -3,13 +3,6 @@ import type { KlineData, KlinePeriod, RealtimeQuote, MacroIndicator } from "../t
 import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators } from "../api/client";
 import StockChart from "../components/StockChart";
 
-function fmtAmount(v?: number): string {
-  const n = v ?? 0;
-  if (n >= 1e8) return (n / 1e8).toFixed(2) + " 亿";
-  if (n >= 1e4) return (n / 1e4).toFixed(2) + " 万";
-  return n.toFixed(0);
-}
-
 export default function Market() {
   const [indexes, setIndexes] = useState<RealtimeQuote[]>([]);
   const [selected, setSelected] = useState<RealtimeQuote | null>(null);
@@ -87,27 +80,24 @@ export default function Market() {
       {loading ? (
         <div className="text-sm text-gray-400 py-10 text-center">加载中...</div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 md:grid-cols-12 gap-2">
           {indexes.map((idx) => (
             <button
               key={idx.code}
               onClick={() => setSelected(idx)}
-              className={`text-left bg-gray-900 border rounded-lg p-3 hover:border-gray-600 transition-colors ${
+              className={`text-left bg-gray-900 border rounded-md px-1.5 py-3 hover:border-gray-600 transition-colors flex flex-col justify-center ${
                 selected?.code === idx.code
                   ? "border-blue-600"
                   : "border-gray-800"
               }`}
             >
-              <p className="text-sm text-gray-400">{idx.name}</p>
-              <p className={`text-2xl font-mono font-semibold ${up(idx.changePct) ? "text-red-400" : "text-green-400"}`}>
+              <p className="text-[11px] text-gray-400 truncate">{idx.name}</p>
+              <p className={`text-sm font-mono font-semibold ${up(idx.changePct) ? "text-red-400" : "text-green-400"}`}>
                 {idx.price.toFixed(2)}
               </p>
-              <p className={`text-sm font-mono ${up(idx.changePct) ? "text-red-400" : "text-green-400"}`}>
+              <p className={`font-mono text-[11px] ${up(idx.changePct) ? "text-red-400" : "text-green-400"}`}>
                 {up(idx.changePct) ? "+" : ""}
                 {idx.changePct.toFixed(2)}%
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                成交 {fmtAmount(idx.volume)} / 额 {fmtAmount(idx.amount)}
               </p>
             </button>
           ))}

@@ -6,4 +6,10 @@ export const MARKET_INDEXES: { code: string; name: string }[] = [
   { code: "sh000300", name: "沪深300" },
   { code: "sh000016", name: "上证50" },
   { code: "sh000905", name: "中证500" },
+  { code: "sh000688", name: "科创50" },
+  { code: "sh000933", name: "医药" },
+  { code: "sz399997", name: "白酒" },
+  { code: "sz980017", name: "半导体" },
+  { code: "sz399986", name: "银行" },
+  { code: "sz399393", name: "地产" },
 ];
