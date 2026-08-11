@@ -183,3 +183,29 @@ marketRouter.get("/fx-cny-usd/:period", async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/market/gold-price/:period?start=&end= — 黄金价格
+const VALID_GOLD_PERIODS = ["daily", "weekly", "monthly", "quarterly", "yearly"];
+
+marketRouter.get("/gold-price/:period", async (req: Request, res: Response) => {
+  try {
+    const { period } = req.params;
+    if (!VALID_GOLD_PERIODS.includes(period)) {
+      res.status(400).json({ success: false, error: `Invalid period. Valid values: ${VALID_GOLD_PERIODS.join(", ")}` });
+      return;
+    }
+    const { start, end } = req.query;
+    const cacheKey = `gold_price_${period}_${start || "all"}_${end || "all"}`;
+    const data = await cacheManager.getOrFetch(
+      cacheKey,
+      async () => {
+        await db.init();
+        return db.getGoldPrice(period, start as string | undefined, end as string | undefined);
+      },
+      60 * 60 * 1000
+    );
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});

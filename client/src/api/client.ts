@@ -186,3 +186,14 @@ export async function fetchFxCnyUsd(
   });
   return data.data;
 }
+
+export async function fetchGoldPrice(
+  period: string,
+  start?: string,
+  end?: string
+): Promise<{ date: string; open: number; high: number; low: number; close: number }[]> {
+  const { data } = await api.get(`/market/gold-price/${period}`, {
+    params: { start, end },
+  });
+  return data.data;
+}
