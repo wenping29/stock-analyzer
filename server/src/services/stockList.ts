@@ -1,5 +1,6 @@
 import type { StockInfo } from "@shared/types";
 import { fetcher } from "./fetcher";
+import { db } from "./database";
 
 const FALLBACK_STOCKS: { code: string; name: string }[] = [
   { code: "600519", name: "贵州茅台" }, { code: "000858", name: "五粮液" },
@@ -53,13 +54,43 @@ const FALLBACK_STOCKS: { code: string; name: string }[] = [
   { code: "600837", name: "海通证券" }, { code: "002739", name: "万达电影" },
 ];
 
+const TYPE_MATCHERS: Record<string, (code: string) => boolean> = {
+  all: () => true,
+  a: (c) => /^[036]/.test(c),
+  b: (c) => /^(900|200)/.test(c),
+  sh: (c) => /^[6]/.test(c),
+  sz: (c) => /^[03]/.test(c),
+  bj: (c) => /^(92|8)/.test(c),
+  chinext: (c) => /^30/.test(c),
+  star: (c) => /^68/.test(c),
+  neeq: (c) => /^4/.test(c),
+};
+
+function filterByType(stocks: { code: string; name: string }[], type: string): { code: string; name: string }[] {
+  const matcher = TYPE_MATCHERS[type] ?? (() => true);
+  return stocks.filter((s) => matcher(s.code)).map((s) => ({ code: s.code, name: s.name }));
+}
+
 export async function getFilteredStockList(type: string = "all"): Promise<StockInfo[]> {
+  // try {
+  //   const stocks = await fetcher.fetchStockList(type);
+  //   const filtered = stocks.filter((s) => !s.name.includes("ST") && !s.name.includes("退"));
+  //   if (filtered.length > 0) {
+  //     db.init().then(() => db.saveStockList(filtered)).catch(() => {});
+  //     return filtered;
+  //   }
+  // } catch (e) {
+  //   console.warn("[stockList] API fetch failed, using fallback list:", (e as Error).message);
+  // }
+
+  // Fallback 1: type-filtered cache from SQLite (previously fetched lists)
   try {
-    const stocks = await fetcher.fetchStockList(type);
-    const filtered = stocks.filter((s) => !s.name.includes("ST") && !s.name.includes("退"));
+    await db.init();
+    const cached = db.getStockList().filter((s) => !s.name.includes("ST") && !s.name.includes("退"));
+    const filtered = filterByType(cached, type);
     if (filtered.length > 0) return filtered;
-  } catch (e) {
-    console.warn("[stockList] API fetch failed, using fallback list:", (e as Error).message);
-  }
-  return FALLBACK_STOCKS;
+  } catch { /* DB may not be initialized */ }
+
+  // Fallback 2: type-filtered static list so different tabs always show different content
+  return filterByType(FALLBACK_STOCKS, type);
 }
