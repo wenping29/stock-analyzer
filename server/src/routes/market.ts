@@ -9,11 +9,17 @@ export const marketRouter = Router();
 marketRouter.get("/indexes", async (_req: Request, res: Response) => {
   try {
     const quotes = await cacheManager.getOrFetch(
-      "market_index_quotes",
+      "market_index_quotes_v2",
       () => fetcher.fetchIndexQuote(MARKET_INDEXES.map((i) => i.code)),
       60 * 1000 // 1min TTL
     );
-    res.json({ success: true, data: quotes });
+    // 名称以本地配置为准，避免外部接口编码问题导致的乱码
+    const nameByCode = new Map(MARKET_INDEXES.map((i) => [i.code, i.name]));
+    const data = quotes.map((q) => ({
+      ...q,
+      name: nameByCode.get(q.code) || q.name,
+    }));
+    res.json({ success: true, data });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -367,11 +367,21 @@ class StockDataFetcher {
       const chunk = symbols.slice(i, i + 20);
       await rateLimit();
       try {
-        const resp = await sinaQuoteApi.get<string>(
+        const resp = await sinaQuoteApi.get<ArrayBuffer>(
           `https://hq.sinajs.cn/list=${chunk.join(",")}`,
-          { headers: { Referer: "https://finance.sina.com.cn/" } }
+          {
+            headers: { Referer: "https://finance.sina.com.cn/" },
+            responseType: "arraybuffer",
+          }
         );
-        const lines = (resp.data || "").split(";").filter(Boolean);
+        // Sina hq API returns GBK-encoded text, decode manually to avoid garbled names
+        let text: string;
+        try {
+          text = new TextDecoder("gbk").decode(new Uint8Array(resp.data));
+        } catch {
+          text = new TextDecoder("utf-8").decode(new Uint8Array(resp.data));
+        }
+        const lines = text.split(";").filter(Boolean);
         for (const line of lines) {
           const m = line.match(/hq_str_(\w+)="(.*)"/);
           if (!m) continue;
@@ -387,7 +397,6 @@ class StockDataFetcher {
             market: sym.startsWith("sh") ? "SH" : "SZ",
             price,
             changePct: prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0,
-            open: parseFloat(parts[1]),
             high: parseFloat(parts[4]),
             low: parseFloat(parts[5]),
             volume: parseFloat(parts[8]),
