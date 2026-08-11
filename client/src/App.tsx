@@ -46,7 +46,7 @@ export default function App() {
         <div className="flex">
           <div className="flex-1 min-w-0">
             <Routes>
-              <Route path="/" element={<Navigate to="/indicators" replace />} />
+              <Route path="/" element={<Navigate to="/market" replace />} />
               <Route path="/market" element={<Market />} />
               <Route path="/indicators" element={<Indicators />} />
               <Route path="/stock/:code" element={<StockDetail />} />
