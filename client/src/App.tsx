@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Indicators from "./pages/Indicators";
 import Screener from "./pages/Screener";
 import Backtest from "./pages/Backtest";
@@ -31,6 +31,9 @@ function NavBar() {
 }
 
 export default function App() {
+  const { pathname } = useLocation();
+  const showStockList = pathname === "/indicators";
+
   return (
     <div className="min-h-screen bg-gray-950">
       <NavBar />
@@ -46,7 +49,7 @@ export default function App() {
               <Route path="/monitoring" element={<Monitoring />} />
             </Routes>
           </div>
-          <StockListPanel />
+          {showStockList && <StockListPanel />}
         </div>
       </StockSelectionProvider>
     </div>
