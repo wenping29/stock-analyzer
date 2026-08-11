@@ -6,6 +6,7 @@ import EquityCurveChart from "../components/EquityCurveChart";
 import PerformanceCards from "../components/PerformanceCards";
 import TradeTable from "../components/TradeTable";
 import MonthlyHeatmap from "../components/MonthlyHeatmap";
+import CollapsibleSidebar from "../components/CollapsibleSidebar";
 
 const DEFAULT_ENTRY_RULES: RuleGroup = {
   logic: "AND",
@@ -95,7 +96,8 @@ export default function Backtest() {
   return (
     <div className="flex h-[calc(100vh-48px)]">
       {/* Sidebar */}
-      <div className="w-80 shrink-0 bg-gray-900 border-r border-gray-800 p-4 overflow-y-auto space-y-4">
+      <CollapsibleSidebar width="w-80">
+        <div className="space-y-4">
         <h2 className="text-lg font-bold text-gray-200">回测配置</h2>
 
         {/* Stock search */}
@@ -227,7 +229,8 @@ export default function Backtest() {
         </button>
 
         {error && <div className="text-red-400 text-sm bg-red-900/30 rounded p-2">{error}</div>}
-      </div>
+        </div>
+      </CollapsibleSidebar>
 
       {/* Main */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

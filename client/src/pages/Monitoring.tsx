@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { MonitorJob, RuleGroup, WebhookConfig } from "../types";
 import RuleBuilder from "../components/RuleBuilder";
+import CollapsibleSidebar from "../components/CollapsibleSidebar";
 
 const API_BASE = "/api/monitoring";
 
@@ -139,7 +140,8 @@ export default function Monitoring() {
   return (
     <div className="flex h-[calc(100vh-48px)]">
       {/* Sidebar - Job list */}
-      <div className="w-72 shrink-0 bg-gray-900 border-r border-gray-800 p-4 overflow-y-auto">
+      <CollapsibleSidebar width="w-72">
+        <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-200">监控任务</h2>
           <button onClick={() => setEditing(true)}
@@ -169,7 +171,8 @@ export default function Monitoring() {
             </div>
           ))}
         </div>
-      </div>
+        </div>
+      </CollapsibleSidebar>
 
       {/* Main - Create/Edit form */}
       <div className="flex-1 overflow-y-auto p-4">

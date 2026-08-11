@@ -5,6 +5,7 @@ import StockChart from "../components/StockChart";
 import VolumeChart from "../components/VolumeChart";
 import IndicatorChart from "../components/IndicatorChart";
 import SignalBadge from "../components/SignalBadge";
+import CollapsibleSidebar from "../components/CollapsibleSidebar";
 
 const INDICATOR_LIST = [
   { name: "MA", label: "MA 移动平均线", category: "trend", defaultParams: { period: 20 } },
@@ -92,7 +93,8 @@ export default function Indicators() {
   return (
     <div className="flex gap-0 h-[calc(100vh-52px)]">
       {/* Left Sidebar */}
-      <div className="w-72 shrink-0 bg-gray-900 border-r border-gray-800 p-4 overflow-y-auto space-y-5">
+      <CollapsibleSidebar width="w-72">
+        <div className="space-y-5">
         {/* Search */}
         <div>
           <label className="text-xs text-gray-500 mb-1 block">股票搜索</label>
@@ -193,7 +195,8 @@ export default function Indicators() {
             更新图表
           </button>
         </div>
-      </div>
+        </div>
+      </CollapsibleSidebar>
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">

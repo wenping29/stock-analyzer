@@ -3,6 +3,7 @@ import type { RuleGroup, ScreeningResult, PresetInfo, KlinePeriod } from "../typ
 import { runScreening, fetchPresets, loadPreset } from "../api/client";
 import RuleBuilder from "../components/RuleBuilder";
 import StockTable from "../components/StockTable";
+import CollapsibleSidebar from "../components/CollapsibleSidebar";
 
 const STOCK_POOLS = ["全部A股", "创业板"];
 
@@ -63,7 +64,8 @@ export default function Screener() {
   return (
     <div className="flex gap-0 h-[calc(100vh-52px)]">
       {/* Left Sidebar */}
-      <div className="w-80 shrink-0 bg-gray-900 border-r border-gray-800 p-4 overflow-y-auto space-y-5">
+      <CollapsibleSidebar width="w-80">
+        <div className="space-y-5">
         {/* Stock pool */}
         <div>
           <label className="text-xs text-gray-500 mb-1 block">股票池</label>
@@ -151,7 +153,8 @@ export default function Screener() {
             <p>符合条件：<span className="text-blue-400 font-medium">{meta.matched}</span> 只</p>
           </div>
         )}
-      </div>
+        </div>
+      </CollapsibleSidebar>
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
