@@ -10,7 +10,7 @@ server/data/
 scraper/data/
 
 # Environment
-.env
+#.env
 .env.local
 .env.*.local
 
