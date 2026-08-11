@@ -8,6 +8,7 @@ import { searchStock, runGridSearch, runWalkForward } from "../api/client";
 import RuleBuilder from "../components/RuleBuilder";
 import ParamRangeBuilder from "../components/ParamRangeBuilder";
 import CollapsibleSidebar from "../components/CollapsibleSidebar";
+import { useStockSelection } from "../components/StockSelectionContext";
 
 const DEFAULT_ENTRY_RULES: RuleGroup = {
   logic: "AND",
@@ -35,6 +36,15 @@ export default function Optimization() {
   const [error, setError] = useState("");
   const [results, setResults] = useState<OptimizationResult[] | null>(null);
   const [wfResults, setWfResults] = useState<WalkForwardResult[] | null>(null);
+
+  // React to stock selection from the right-hand stock list panel
+  const { selected } = useStockSelection();
+  useEffect(() => {
+    if (selected) {
+      setSelectedStock(selected.stock);
+      setQuery(selected.stock.name);
+    }
+  }, [selected]);
 
   useEffect(() => {
     if (query.length < 2) { setSearchResults([]); return; }

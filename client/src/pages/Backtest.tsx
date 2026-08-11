@@ -7,6 +7,7 @@ import PerformanceCards from "../components/PerformanceCards";
 import TradeTable from "../components/TradeTable";
 import MonthlyHeatmap from "../components/MonthlyHeatmap";
 import CollapsibleSidebar from "../components/CollapsibleSidebar";
+import { useStockSelection } from "../components/StockSelectionContext";
 
 const DEFAULT_ENTRY_RULES: RuleGroup = {
   logic: "AND",
@@ -43,6 +44,15 @@ export default function Backtest() {
     equityCurve: { date: string; value: number }[];
     metrics: PerformanceMetrics;
   } | null>(null);
+
+  // React to stock selection from the right-hand stock list panel
+  const { selected } = useStockSelection();
+  useEffect(() => {
+    if (selected) {
+      setSelectedStock(selected.stock);
+      setQuery(selected.stock.name);
+    }
+  }, [selected]);
 
   // Stock search
   useEffect(() => {

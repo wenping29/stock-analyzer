@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { KlineData, KlinePeriod, IndicatorResult, StockInfo } from "../types";
 import { searchStock, fetchKline, computeIndicators } from "../api/client";
 import StockChart from "../components/StockChart";
@@ -6,6 +6,7 @@ import VolumeChart from "../components/VolumeChart";
 import IndicatorChart from "../components/IndicatorChart";
 import SignalBadge from "../components/SignalBadge";
 import CollapsibleSidebar from "../components/CollapsibleSidebar";
+import { useStockSelection } from "../components/StockSelectionContext";
 
 const INDICATOR_LIST = [
   { name: "MA", label: "MA 移动平均线", category: "trend", defaultParams: { period: 20 } },
@@ -81,6 +82,16 @@ export default function Indicators() {
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     );
   };
+
+  // React to stock selection from the right-hand stock list panel
+  const { selected } = useStockSelection();
+  const handleSelectStockRef = useRef(handleSelectStock);
+  useEffect(() => {
+    handleSelectStockRef.current = handleSelectStock;
+  });
+  useEffect(() => {
+    if (selected) handleSelectStockRef.current(selected.stock);
+  }, [selected]);
 
   // Separate indicators for K-line overlay vs sub-charts
   const overlayIndicators = indicatorResults.filter((r) =>

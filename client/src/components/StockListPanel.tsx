@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import type { StockInfo } from "../types";
 import { fetchStockList } from "../api/client";
 import type { StockListType } from "../api/client";
+import { useStockSelection } from "./StockSelectionContext";
 
 const STOCK_TYPES: { value: StockListType; label: string }[] = [
   { value: "all", label: "全部" },
@@ -22,6 +23,7 @@ export default function StockListPanel() {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<StockListType>("all");
   const [collapsed, setCollapsed] = useState(false);
+  const { selected, selectStock } = useStockSelection();
 
   useEffect(() => {
     setLoading(true);
@@ -95,7 +97,10 @@ export default function StockListPanel() {
                 {filtered.map((s) => (
                   <li
                     key={s.code}
-                    className="flex items-center justify-between px-3 py-1.5 hover:bg-gray-800 text-sm"
+                    onClick={() => selectStock(s)}
+                    className={`flex items-center justify-between px-3 py-1.5 hover:bg-gray-800 text-sm cursor-pointer ${
+                      selected?.stock.code === s.code ? "bg-blue-900/40" : ""
+                    }`}
                   >
                     <span className="text-gray-300 truncate">{s.name}</span>
                     <span className="font-mono text-gray-500">{s.code}</span>
