@@ -989,6 +989,75 @@ class StockDataFetcher {
       yearly: fromKline(this.aggregateToPeriod(toKline(dailyData), "yearly")),
     };
   }
+
+  async fetchCrudeOilDaily(startDate: string, endDate: string): Promise<{ date: string; open: number; high: number; low: number; close: number }[]> {
+    const allRows: { date: string; open: number; high: number; low: number; close: number }[] = [];
+    const startYear = new Date(startDate).getFullYear();
+    const endYear = new Date(endDate).getFullYear();
+    const startStr = startDate.replace(/-/g, "");
+    const endStr = endDate.replace(/-/g, "");
+
+    for (let year = startYear; year <= endYear; year++) {
+      const chunkStart = year === startYear ? startDate : `${year}-01-01`;
+      const chunkEnd = year === endYear ? endDate : `${year}-12-31`;
+
+      try {
+        const resp = await axios.get("https://api.investing.com/api/financialdata/historical/8833", {
+          params: {
+            "start-date": chunkStart,
+            "end-date": chunkEnd,
+            "time-frame": "Daily",
+            "add-missing-rows": "false",
+          },
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "domain-id": "www",
+          },
+          timeout: REQUEST_TIMEOUT_MS,
+        });
+
+        const data = resp.data?.data || [];
+        for (const row of data) {
+          const dateStr = new Date(row.rowDateRaw * 1000).toISOString().slice(0, 10).replace(/-/g, "");
+          if (dateStr >= startStr && dateStr <= endStr) {
+            allRows.push({
+              date: dateStr,
+              open: row.last_openRaw,
+              high: row.last_maxRaw,
+              low: row.last_minRaw,
+              close: row.last_closeRaw,
+            });
+          }
+        }
+        await rateLimit();
+      } catch (e) {
+        console.warn(`[fetcher] Investing.com oil ${year} failed: ${(e as Error).message}`);
+      }
+    }
+
+    return allRows.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  async fetchCrudeOilAllPeriods(startDate: string, endDate: string): Promise<Record<string, { date: string; open: number; high: number; low: number; close: number }[]>> {
+    const dailyData = await this.fetchCrudeOilDaily(startDate, endDate);
+    if (dailyData.length === 0) {
+      return { daily: [], weekly: [], monthly: [], quarterly: [], yearly: [] };
+    }
+
+    const toKline = (d: { date: string; open: number; high: number; low: number; close: number }[]): KlineData[] =>
+      d.map((r) => ({ date: r.date, open: r.open, high: r.high, low: r.low, close: r.close, volume: 0, amount: 0 }));
+
+    const fromKline = (k: KlineData[]): { date: string; open: number; high: number; low: number; close: number }[] =>
+      k.map((r) => ({ date: r.date, open: r.open, high: r.high, low: r.low, close: r.close }));
+
+    return {
+      daily: dailyData,
+      weekly: fromKline(this.aggregateToPeriod(toKline(dailyData), "weekly")),
+      monthly: fromKline(this.aggregateToPeriod(toKline(dailyData), "monthly")),
+      quarterly: fromKline(this.aggregateToPeriod(toKline(dailyData), "quarterly")),
+      yearly: fromKline(this.aggregateToPeriod(toKline(dailyData), "yearly")),
+    };
+  }
 }
 
 export const fetcher = new StockDataFetcher();

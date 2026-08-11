@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Plot from "react-plotly.js";
 import type { KlineData, KlinePeriod, RealtimeQuote, MacroIndicator } from "../types";
-import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators, fetchUsRateHistory, fetchCnRateHistory, fetchIndexPeriodData, fetchFxCnyUsd, fetchGoldPrice } from "../api/client";
+import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators, fetchUsRateHistory, fetchCnRateHistory, fetchIndexPeriodData, fetchFxCnyUsd, fetchGoldPrice, fetchCrudeOil } from "../api/client";
 import StockChart from "../components/StockChart";
 
 export default function Market() {
@@ -23,6 +23,8 @@ export default function Market() {
   const [fxData, setFxData] = useState<{ date: string; open: number; high: number; low: number; close: number }[]>([]);
   const [goldPeriod, setGoldPeriod] = useState("daily");
   const [goldData, setGoldData] = useState<{ date: string; open: number; high: number; low: number; close: number }[]>([]);
+  const [oilPeriod, setOilPeriod] = useState("daily");
+  const [oilData, setOilData] = useState<{ date: string; open: number; high: number; low: number; close: number }[]>([]);
 
   const [dateRange, setDateRange] = useState(() => {
     const end = new Date();
@@ -119,6 +121,16 @@ export default function Market() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [goldPeriod]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCrudeOil(oilPeriod)
+      .then((data) => {
+        if (!cancelled) setOilData(data);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [oilPeriod]);
 
   const up = (v?: number) => (v ?? 0) >= 0;
 
@@ -505,6 +517,65 @@ export default function Market() {
                         gridcolor: "#1f2937",
                         side: "right",
                         title: { text: "USD/盎司", font: { size: 10 }, standoff: 0 },
+                      },
+                      showlegend: false,
+                      hovermode: "x unified",
+                      hoverlabel: {
+                        bgcolor: "#1f2937",
+                        bordercolor: "#374151",
+                        font: { color: "#e5e7eb", size: 11 },
+                      },
+                    }}
+                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              )}
+              {oilData.length > 0 && (
+                <div className="bg-gray-900/85 border border-gray-700 rounded-md p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-gray-300 font-medium">原油期货 (WTI, USD/桶)</span>
+                    {(["daily", "weekly", "monthly", "quarterly", "yearly"] as const).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setOilPeriod(p)}
+                        className={`px-2 py-0.5 text-[11px] rounded ${
+                          oilPeriod === p
+                            ? "bg-emerald-700 text-white"
+                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                        }`}
+                      >
+                        {p === "daily" ? "日" : p === "weekly" ? "周" : p === "monthly" ? "月" : p === "quarterly" ? "季" : "年"}
+                      </button>
+                    ))}
+                  </div>
+                  <Plot
+                    data={[{
+                      x: oilData.map((d) => d.date),
+                      y: oilData.map((d) => d.close),
+                      type: "scatter",
+                      mode: "lines",
+                      name: "Crude Oil",
+                      line: { color: "#10b981", width: 1.5 },
+                    }]}
+                    layout={{
+                      paper_bgcolor: "transparent",
+                      plot_bgcolor: "transparent",
+                      font: { color: "#9ca3af", size: 10 },
+                      margin: { t: 10, r: 30, b: 30, l: 50 },
+                      height: 180,
+                      xaxis: {
+                        gridcolor: "#1f2937",
+                        tickmode: "auto",
+                        nticks: 6,
+                        tickangle: -30,
+                        automargin: true,
+                        rangeslider: { visible: false },
+                      },
+                      yaxis: {
+                        gridcolor: "#1f2937",
+                        side: "right",
+                        title: { text: "USD/桶", font: { size: 10 }, standoff: 0 },
                       },
                       showlegend: false,
                       hovermode: "x unified",
