@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosError } from "axios";
-import type { KlineData, KlinePeriod, StockInfo, RealtimeQuote } from "@shared/types";
-export type { KlineData, KlinePeriod, StockInfo, RealtimeQuote };
+import type { KlineData, KlinePeriod, StockInfo, RealtimeQuote, MacroIndicator } from "@shared/types";
+export type { KlineData, KlinePeriod, StockInfo, RealtimeQuote, MacroIndicator };
 
 // ---------- configuration ----------
 const RATE_LIMIT_MS = 2000;
@@ -473,6 +473,114 @@ class StockDataFetcher {
     } catch { /* fall through */ }
 
     return this.generateSyntheticKline(startDate, endDate, period);
+  }
+
+  // ---- Macro indicators (大盘行情叠加标签) ----
+
+  private async fetchSinaHq(list: string): Promise<Map<string, string[]>> {
+    const resp = await sinaApi.get<ArrayBuffer>(
+      `https://hq.sinajs.cn/list=${list}`,
+      {
+        headers: { Referer: "https://finance.sina.com.cn/" },
+        responseType: "arraybuffer",
+      }
+    );
+    // Sina hq API returns GBK-encoded text, decode manually to avoid garbled names
+    let text: string;
+    try {
+      text = new TextDecoder("gbk").decode(new Uint8Array(resp.data));
+    } catch {
+      text = new TextDecoder("utf-8").decode(new Uint8Array(resp.data));
+    }
+    const map = new Map<string, string[]>();
+    for (const line of text.split(";")) {
+      const m = line.match(/hq_str_(\w+)="(.*)"/);
+      if (!m) continue;
+      map.set(m[1], m[2].split(","));
+    }
+    return map;
+  }
+
+  async fetchMacroIndicators(): Promise<MacroIndicator[]> {
+    const defs: {
+      key: string; name: string; unit: string; precision: number;
+      sina: string; kind: "bond" | "futures" | "fx";
+    }[] = [
+      { key: "us10y", name: "美债10Y", unit: "%", precision: 2, sina: "globalbd_us10yt", kind: "bond" },
+      { key: "us3m", name: "美债3M", unit: "%", precision: 2, sina: "globalbd_us3mt", kind: "bond" },
+      { key: "usdcny", name: "美元兑人民币", unit: "", precision: 4, sina: "fx_susdcny", kind: "fx" },
+      { key: "oil", name: "WTI原油", unit: "$", precision: 2, sina: "hf_CL", kind: "futures" },
+      { key: "cn10y", name: "中债10Y", unit: "%", precision: 2, sina: "globalbd_cn10yt", kind: "bond" },
+    ];
+
+    await rateLimit();
+    const raw = await this.fetchSinaHq(defs.map((d) => d.sina).join(","));
+
+    const results: MacroIndicator[] = [];
+    for (const def of defs) {
+      const parts = raw.get(def.sina);
+      if (!parts || parts.length < 10) continue;
+      let value = NaN;
+      let changePct = 0;
+      let time = "";
+      if (def.kind === "bond") {
+        value = parseFloat(parts[1]);
+        changePct = parseFloat(parts[7]);
+        time = parts[12] || "";
+      } else if (def.kind === "futures") {
+        value = parseFloat(parts[0]);
+        const prev = parseFloat(parts[7]);
+        changePct = prev > 0 ? ((value - prev) / prev) * 100 : 0;
+        time = parts[12] || "";
+      } else if (def.kind === "fx") {
+        value = parseFloat(parts[1]);
+        changePct = parseFloat(parts[10]);
+        time = parts[17] || "";
+      }
+      if (isNaN(value)) continue;
+      results.push({
+        key: def.key,
+        name: def.name,
+        value,
+        changePct: isNaN(changePct) ? 0 : changePct,
+        unit: def.unit,
+        precision: def.precision,
+        time,
+      });
+    }
+
+    // 人民币利率 — SHIBOR 3M（东方财富数据中心）
+    try {
+      await rateLimit();
+      const resp = await eastmoneyApi.get("https://datacenter-web.eastmoney.com/api/data/v1/get", {
+        params: {
+          reportName: "RPT_IMP_INTRESTRATEN",
+          columns: "ALL",
+          pageSize: "1",
+          sortColumns: "REPORT_DATE",
+          sortTypes: "-1",
+          filter: '(MARKET_CODE="001")(CURRENCY_CODE="CNY")(INDICATOR_ID="203")(LATEST_RECORD="1")',
+        },
+      });
+      const row = resp.data?.result?.data?.[0];
+      const rate = parseFloat(row?.IR_RATE);
+      if (row && !isNaN(rate)) {
+        const change = parseFloat(row?.CHANGE_RATE);
+        results.push({
+          key: "cnrate",
+          name: "SHIBOR 3M",
+          value: rate,
+          changePct: isNaN(change) ? 0 : change / 100,
+          unit: "%",
+          precision: 2,
+          time: row.REPORT_DATE ? String(row.REPORT_DATE).slice(0, 10) : "",
+        });
+      }
+    } catch (e) {
+      console.warn(`[fetcher] SHIBOR fetch failed: ${(e as Error).message}`);
+    }
+
+    return results;
   }
 
   private toNumber(v: any): number {

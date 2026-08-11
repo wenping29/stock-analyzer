@@ -3,6 +3,7 @@ export type {
   KlineData,
   StockInfo,
   RealtimeQuote,
+  MacroIndicator,
   IndicatorResult,
   Signal,
   RuleCondition,

@@ -16,6 +16,7 @@ import type {
   WalkForwardConfig,
   WalkForwardResult,
   RealtimeQuote,
+  MacroIndicator,
 } from "../types";
 
 const api = axios.create({
@@ -43,6 +44,11 @@ export async function fetchStockDetail(
 
 export async function fetchMarketIndexes(): Promise<RealtimeQuote[]> {
   const { data } = await api.get("/market/indexes");
+  return data.data;
+}
+
+export async function fetchMacroIndicators(): Promise<MacroIndicator[]> {
+  const { data } = await api.get("/market/macro");
   return data.data;
 }
 

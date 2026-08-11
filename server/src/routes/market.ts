@@ -25,6 +25,20 @@ marketRouter.get("/indexes", async (_req: Request, res: Response) => {
   }
 });
 
+// GET /api/market/macro — 宏观指标叠加标签（美债/汇率/原油/中债/利率）
+marketRouter.get("/macro", async (_req: Request, res: Response) => {
+  try {
+    const data = await cacheManager.getOrFetch(
+      "market_macro_v1",
+      () => fetcher.fetchMacroIndicators(),
+      60 * 1000 // 1min TTL
+    );
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/market/indexes/:code/kline?start=&end=&period= — 指数K线
 marketRouter.get("/indexes/:code/kline", async (req: Request, res: Response) => {
   try {

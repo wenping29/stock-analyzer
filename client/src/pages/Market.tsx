@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import type { KlineData, KlinePeriod, RealtimeQuote } from "../types";
-import { fetchMarketIndexes, fetchIndexKline } from "../api/client";
+import type { KlineData, KlinePeriod, RealtimeQuote, MacroIndicator } from "../types";
+import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators } from "../api/client";
 import StockChart from "../components/StockChart";
 
 function fmtAmount(v?: number): string {
@@ -18,6 +18,7 @@ export default function Market() {
   const [loading, setLoading] = useState(true);
   const [klineLoading, setKlineLoading] = useState(false);
   const [error, setError] = useState("");
+  const [macro, setMacro] = useState<MacroIndicator[]>([]);
 
   const [dateRange, setDateRange] = useState(() => {
     const end = new Date();
@@ -43,6 +44,11 @@ export default function Market() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    fetchMacroIndicators()
+      .then((list) => {
+        if (!cancelled) setMacro(list);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -134,7 +140,37 @@ export default function Market() {
           {klineLoading ? (
             <div className="text-sm text-gray-400 py-10 text-center">加载中...</div>
           ) : klineData.length > 0 ? (
-            <StockChart klineData={klineData} indicators={[]} />
+            <div className="space-y-2">
+              <StockChart klineData={klineData} indicators={[]} />
+              {macro.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {macro.map((m) => (
+                    <div
+                      key={m.key}
+                      className="flex items-baseline gap-1 rounded-md bg-gray-900/85 border border-gray-700 px-2 py-1"
+                    >
+                      <span className="text-[10px] text-gray-400">{m.name}</span>
+                      <span
+                        className={`font-mono text-xs font-semibold ${
+                          m.changePct >= 0 ? "text-red-400" : "text-green-400"
+                        }`}
+                      >
+                        {m.value.toFixed(m.precision)}
+                        {m.unit}
+                      </span>
+                      <span
+                        className={`font-mono text-[10px] ${
+                          m.changePct >= 0 ? "text-red-400" : "text-green-400"
+                        }`}
+                      >
+                        {m.changePct >= 0 ? "+" : ""}
+                        {m.changePct.toFixed(2)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="text-sm text-gray-500 py-10 text-center">暂无行情数据</div>
           )}

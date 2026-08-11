@@ -40,6 +40,18 @@ export interface RealtimeQuote {
   amount?: number;     // 成交额
 }
 
+// ---- Macro Indicators (大盘行情叠加标签) ----
+
+export interface MacroIndicator {
+  key: string;
+  name: string;
+  value: number;
+  changePct: number;   // 涨跌幅 %
+  unit: string;
+  precision: number;   // 显示保留小数位
+  time?: string;       // 数据日期
+}
+
 // ---- Indicators ----
 
 export interface Signal {
