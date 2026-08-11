@@ -208,3 +208,14 @@ export async function fetchCrudeOil(
   });
   return data.data;
 }
+
+export async function fetchCn10y(
+  period: string,
+  start?: string,
+  end?: string
+): Promise<{ date: string; open: number; high: number; low: number; close: number }[]> {
+  const { data } = await api.get(`/market/cn10y/${period}`, {
+    params: { start, end },
+  });
+  return data.data;
+}

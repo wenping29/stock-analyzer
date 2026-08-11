@@ -235,3 +235,29 @@ marketRouter.get("/crude-oil/:period", async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/market/cn10y/:period?start=&end= — 中债10年期国债收益率
+const VALID_CN10Y_PERIODS = ["daily", "weekly", "monthly", "quarterly", "yearly"];
+
+marketRouter.get("/cn10y/:period", async (req: Request, res: Response) => {
+  try {
+    const { period } = req.params;
+    if (!VALID_CN10Y_PERIODS.includes(period)) {
+      res.status(400).json({ success: false, error: `Invalid period. Valid values: ${VALID_CN10Y_PERIODS.join(", ")}` });
+      return;
+    }
+    const { start, end } = req.query;
+    const cacheKey = `cn10y_${period}_${start || "all"}_${end || "all"}`;
+    const data = await cacheManager.getOrFetch(
+      cacheKey,
+      async () => {
+        await db.init();
+        return db.getCn10y(period, start as string | undefined, end as string | undefined);
+      },
+      60 * 60 * 1000
+    );
+    res.json({ success: true, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});

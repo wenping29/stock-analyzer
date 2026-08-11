@@ -1058,6 +1058,38 @@ class StockDataFetcher {
       yearly: fromKline(this.aggregateToPeriod(toKline(dailyData), "yearly")),
     };
   }
+
+  async fetchCn10yDaily(): Promise<{ date: string; open: number; high: number; low: number; close: number }[]> {
+    const rows = await this.fetchCnRateHistory("CN_10Y");
+    return rows.map((r) => ({
+      date: r.date.replace(/-/g, ""),
+      open: r.rate,
+      high: r.rate,
+      low: r.rate,
+      close: r.rate,
+    }));
+  }
+
+  async fetchCn10yAllPeriods(): Promise<Record<string, { date: string; open: number; high: number; low: number; close: number }[]>> {
+    const dailyData = await this.fetchCn10yDaily();
+    if (dailyData.length === 0) {
+      return { daily: [], weekly: [], monthly: [], quarterly: [], yearly: [] };
+    }
+
+    const toKline = (d: { date: string; open: number; high: number; low: number; close: number }[]): KlineData[] =>
+      d.map((r) => ({ date: r.date, open: r.open, high: r.high, low: r.low, close: r.close, volume: 0, amount: 0 }));
+
+    const fromKline = (k: KlineData[]): { date: string; open: number; high: number; low: number; close: number }[] =>
+      k.map((r) => ({ date: r.date, open: r.open, high: r.high, low: r.low, close: r.close }));
+
+    return {
+      daily: dailyData,
+      weekly: fromKline(this.aggregateToPeriod(toKline(dailyData), "weekly")),
+      monthly: fromKline(this.aggregateToPeriod(toKline(dailyData), "monthly")),
+      quarterly: fromKline(this.aggregateToPeriod(toKline(dailyData), "quarterly")),
+      yearly: fromKline(this.aggregateToPeriod(toKline(dailyData), "yearly")),
+    };
+  }
 }
 
 export const fetcher = new StockDataFetcher();
