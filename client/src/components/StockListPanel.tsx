@@ -1,19 +1,35 @@
 import { useState, useEffect, useMemo } from "react";
 import type { StockInfo } from "../types";
 import { fetchStockList } from "../api/client";
+import type { StockListType } from "../api/client";
+
+const STOCK_TYPES: { value: StockListType; label: string }[] = [
+  { value: "all", label: "全部" },
+  { value: "a", label: "A股" },
+  { value: "b", label: "B股" },
+  { value: "sh", label: "上交所" },
+  { value: "sz", label: "深交所" },
+  { value: "bj", label: "北交所" },
+  { value: "chinext", label: "创业板" },
+  { value: "star", label: "科创板" },
+  { value: "neeq", label: "新三板" },
+];
 
 export default function StockListPanel() {
   const [stocks, setStocks] = useState<StockInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [type, setType] = useState<StockListType>("all");
 
   useEffect(() => {
-    fetchStockList()
+    setLoading(true);
+    setError("");
+    fetchStockList(type)
       .then(setStocks)
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [type]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -31,6 +47,15 @@ export default function StockListPanel() {
           <h2 className="text-sm font-bold text-gray-200">股票列表</h2>
           <span className="text-xs text-gray-500">{stocks.length} 只</span>
         </div>
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as StockListType)}
+          className="w-full mb-2 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+        >
+          {STOCK_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}

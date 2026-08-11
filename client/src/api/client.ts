@@ -21,8 +21,10 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "/api",
 });
 
-export async function fetchStockList(): Promise<StockInfo[]> {
-  const { data } = await api.get("/stock/list");
+export type StockListType = "all" | "a" | "b" | "sh" | "sz" | "bj" | "chinext" | "star" | "neeq";
+
+export async function fetchStockList(type: StockListType = "all"): Promise<StockInfo[]> {
+  const { data } = await api.get("/stock/list", { params: { type } });
   return data.data;
 }
 

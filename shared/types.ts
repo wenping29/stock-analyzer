@@ -22,6 +22,7 @@ export interface StockInfo {
   code: string;
   name: string;
   market?: string;
+  board?: string;
   industry?: string;
 }
 

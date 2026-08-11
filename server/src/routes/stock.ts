@@ -7,12 +7,13 @@ export const stockRouter = Router();
 
 const STOCK_LIST_CACHE_KEY = "stock_list";
 
-// GET /api/stock/list — 获取股票列表
-stockRouter.get("/list", async (_req: Request, res: Response) => {
+// GET /api/stock/list?type=all|a|b|sh|sz|bj|chinext|star|neeq — 获取股票列表
+stockRouter.get("/list", async (req: Request, res: Response) => {
   try {
+    const type = (req.query.type as string) || "all";
     const stocks = await cacheManager.getOrFetch(
-      STOCK_LIST_CACHE_KEY,
-      () => getFilteredStockList(),
+      `${STOCK_LIST_CACHE_KEY}_${type}`,
+      () => getFilteredStockList(type),
       60 * 60 * 1000 // 1h TTL
     );
     res.json({ success: true, data: stocks });

@@ -225,7 +225,20 @@ class StockDataFetcher {
     } catch { /* silent fail — API data is still returned */ }
   }
 
+  // EastMoney fs filter codes per category (verified against live API)
   private stockListFs = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048";
+
+  private static STOCK_LIST_FS: Record<string, string> = {
+    all: "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2104,m:0+t:7,m:1+t:3",
+    a: "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048",
+    b: "m:0+t:7,m:1+t:3",
+    sh: "m:1+t:2,m:1+t:23",
+    sz: "m:0+t:6,m:0+t:80",
+    bj: "m:0+t:81+s:2048",
+    chinext: "m:0+t:80",
+    star: "m:1+t:23",
+    neeq: "m:0+t:81+s:2104",
+  };
 
   private async fetchClistItems(
     pageParams: Record<string, string>,
@@ -274,7 +287,8 @@ class StockDataFetcher {
     return { items: allItems, total };
   }
 
-  async fetchStockList(): Promise<StockInfo[]> {
+  async fetchStockList(category: string = "all"): Promise<StockInfo[]> {
+    const fs = StockDataFetcher.STOCK_LIST_FS[category] ?? StockDataFetcher.STOCK_LIST_FS.all;
     const { items } = await this.fetchClistItems({
       pz: "1000",
       po: "1",
@@ -282,7 +296,7 @@ class StockDataFetcher {
       fltt: "2",
       invt: "2",
       fid: "f3",
-      fs: this.stockListFs,
+      fs,
       fields: "f12,f14,f13,f100",
       ut: "bd1d9ddb04089700cf9c27f6f7426281",
     }, 80);
@@ -290,10 +304,25 @@ class StockDataFetcher {
     if (items.length === 0) {
       throw new Error("股票列表为空，API可能限流");
     }
-    return items.map((item: any) => ({
+
+    // NEEQ shares code ranges with BSE (920xxx) in the s:2104 filter, so strip BSE codes
+    let list = items;
+    if (category === "neeq") {
+      list = list.filter((item) => !String(item.f12).startsWith("920"));
+    }
+
+    const seen = new Set<string>();
+    const unique = list.filter((item) => {
+      if (seen.has(item.f12)) return false;
+      seen.add(item.f12);
+      return true;
+    });
+
+    return unique.map((item: any) => ({
       code: item.f12,
       name: item.f14,
       market: this.marketOf(item.f12),
+      board: this.boardOf(item.f12),
       industry: item.f100 || "",
     }));
   }
@@ -330,9 +359,22 @@ class StockDataFetcher {
   }
 
   private marketOf(code: string): string {
-    if (/^[689]/.test(code) && !/^92/.test(code)) return "SH";
-    if (/^[0-3]/.test(code)) return "SZ";
-    return "BJ";
+    if (/^6/.test(code) || /^900/.test(code)) return "SH";
+    if (/^[023]/.test(code)) return "SZ";
+    if (/^920/.test(code)) return "BJ";
+    return "NEEQ";
+  }
+
+  private boardOf(code: string): string {
+    if (/^688|^689/.test(code)) return "科创板";
+    if (/^300|^301/.test(code)) return "创业板";
+    if (/^600|^601|^603|^605/.test(code)) return "沪市A股";
+    if (/^000|^001|^002|^003/.test(code)) return "深市A股";
+    if (/^900/.test(code)) return "沪市B股";
+    if (/^200/.test(code)) return "深市B股";
+    if (/^920/.test(code)) return "北交所";
+    if (/^[48]/.test(code)) return "新三板";
+    return "其他";
   }
 
   async fetchRealTimeQuote(symbols: string[]): Promise<any[]> {

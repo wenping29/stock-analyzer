@@ -53,12 +53,10 @@ const FALLBACK_STOCKS: { code: string; name: string }[] = [
   { code: "600837", name: "海通证券" }, { code: "002739", name: "万达电影" },
 ];
 
-export async function getFilteredStockList(): Promise<{ code: string; name: string }[]> {
+export async function getFilteredStockList(type: string = "all"): Promise<StockInfo[]> {
   try {
-    const stocks = await fetcher.fetchStockList();
-    const filtered = stocks
-      .filter((s) => !s.name.includes("ST") && !s.name.includes("退"))
-      .map((s) => ({ code: s.code, name: s.name }));
+    const stocks = await fetcher.fetchStockList(type);
+    const filtered = stocks.filter((s) => !s.name.includes("ST") && !s.name.includes("退"));
     if (filtered.length > 0) return filtered;
   } catch (e) {
     console.warn("[stockList] API fetch failed, using fallback list:", (e as Error).message);
