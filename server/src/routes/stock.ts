@@ -5,17 +5,11 @@ import { getFilteredStockList } from "../services/stockList";
 
 export const stockRouter = Router();
 
-const STOCK_LIST_CACHE_KEY = "stock_list";
-
-// GET /api/stock/list?type=all|a|b|sh|sz|bj|chinext|star|neeq — 获取股票列表
+// GET /api/stock/list?type=all|a|b|sh|sz|bj|chinext|star|neeq — 从本地数据库获取股票列表
 stockRouter.get("/list", async (req: Request, res: Response) => {
   try {
     const type = (req.query.type as string) || "all";
-    const stocks = await cacheManager.getOrFetch(
-      `${STOCK_LIST_CACHE_KEY}_${type}`,
-      () => getFilteredStockList(type),
-      60 * 60 * 1000 // 1h TTL
-    );
+    const stocks = await getFilteredStockList(type);
     res.json({ success: true, data: stocks });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -26,11 +20,7 @@ stockRouter.get("/list", async (req: Request, res: Response) => {
 stockRouter.get("/search", async (req: Request, res: Response) => {
   try {
     const q = (req.query.q as string) || "";
-    const stocks = await cacheManager.getOrFetch(
-      STOCK_LIST_CACHE_KEY,
-      () => getFilteredStockList(),
-      60 * 60 * 1000
-    );
+    const stocks = await getFilteredStockList();
     const results = stocks.filter(
       (s) => s.code.includes(q) || s.name.includes(q)
     );

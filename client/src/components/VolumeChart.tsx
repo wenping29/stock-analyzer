@@ -53,7 +53,7 @@ export default function VolumeChart({ klineData, indicators }: Props) {
         paper_bgcolor: "#111827",
         plot_bgcolor: "#111827",
         font: { color: "#9ca3af" },
-        xaxis: { type: "category", gridcolor: "#1f2937" },
+        xaxis: { type: "category", gridcolor: "#1f2937", tickmode: "auto", nticks: 8, tickangle: -30 },
         yaxis: { gridcolor: "#1f2937", side: "right" },
         margin: { t: 30, r: 40, b: 30, l: 40 },
         height: 200,
