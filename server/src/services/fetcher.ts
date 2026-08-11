@@ -305,10 +305,10 @@ class StockDataFetcher {
       throw new Error("股票列表为空，API可能限流");
     }
 
-    // NEEQ shares code ranges with BSE (920xxx) in the s:2104 filter, so strip BSE codes
+    // NEEQ shares code ranges with BSE (920/8 prefix) in the s:2104 filter, so strip BSE codes
     let list = items;
     if (category === "neeq") {
-      list = list.filter((item) => !String(item.f12).startsWith("920"));
+      list = list.filter((item) => !/^(920|8)/.test(String(item.f12)));
     }
 
     const seen = new Set<string>();
@@ -360,20 +360,21 @@ class StockDataFetcher {
 
   private marketOf(code: string): string {
     if (/^6/.test(code) || /^900/.test(code)) return "SH";
-    if (/^[023]/.test(code)) return "SZ";
-    if (/^920/.test(code)) return "BJ";
-    return "NEEQ";
+    if (/^[03]/.test(code) || /^200/.test(code)) return "SZ";
+    if (/^920|^8/.test(code)) return "BJ";
+    if (/^4/.test(code)) return "NEEQ";
+    return "其他";
   }
 
   private boardOf(code: string): string {
     if (/^688|^689/.test(code)) return "科创板";
     if (/^300|^301/.test(code)) return "创业板";
-    if (/^600|^601|^603|^605/.test(code)) return "沪市A股";
-    if (/^000|^001|^002|^003/.test(code)) return "深市A股";
+    if (/^6/.test(code)) return "沪市A股";
+    if (/^[03]/.test(code)) return "深市A股";
+    if (/^920|^8/.test(code)) return "北交所";
     if (/^900/.test(code)) return "沪市B股";
     if (/^200/.test(code)) return "深市B股";
-    if (/^920/.test(code)) return "北交所";
-    if (/^[48]/.test(code)) return "新三板";
+    if (/^4/.test(code)) return "新三板";
     return "其他";
   }
 
