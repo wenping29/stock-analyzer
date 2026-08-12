@@ -207,7 +207,7 @@ export default function Market() {
             <div className="text-sm text-gray-400 py-10 text-center">加载中...</div>
           ) : klineData.length > 0 ? (
             <div className="space-y-2">
-              <StockChart klineData={klineData} indicators={[]} />
+              <StockChart klineData={klineData} indicators={[]} usRateData={us10yRate} usRateLabel={rateMaturity} />
               {macro.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {macro.map((m) => (

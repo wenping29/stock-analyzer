@@ -6,6 +6,8 @@ import FullscreenChart from "./FullscreenChart";
 interface Props {
   klineData: KlineData[];
   indicators: IndicatorResult[];
+  usRateData?: { date: string; rate: number }[];
+  usRateLabel?: string;
 }
 
 function getCol(ind: IndicatorResult, colName: string): number[] | undefined {
@@ -13,8 +15,9 @@ function getCol(ind: IndicatorResult, colName: string): number[] | undefined {
   return idx >= 0 ? ind.values[idx] : undefined;
 }
 
-export default function StockChart({ klineData, indicators }: Props) {
+export default function StockChart({ klineData, indicators, usRateData, usRateLabel }: Props) {
   const [chartType, setChartType] = useState<"candlestick" | "line">("candlestick");
+  const [showUsRate, setShowUsRate] = useState(false);
 
   // 缩放/拖拽操作日志
   const interactCount = useRef(0);
@@ -182,9 +185,31 @@ export default function StockChart({ klineData, indicators }: Props) {
     return { candlestick, line, highLine, lowLine, maTraces, bollTraces };
   }, [filteredKline, filteredIndicators]);
 
+  // 美债利率趋势（对齐K线日期，前向填充）
+  const usRateTrace = useMemo(() => {
+    if (!showUsRate || !usRateData || usRateData.length === 0 || filteredKline.length === 0) return null;
+    const sorted = [...usRateData].sort((a, b) => a.date.localeCompare(b.date));
+    const aligned: number[] = [];
+    let idx = 0;
+    for (const k of filteredKline) {
+      while (idx < sorted.length - 1 && sorted[idx + 1].date <= k.date) idx++;
+      aligned.push(sorted[idx].date <= k.date ? sorted[idx].rate : NaN);
+    }
+    return {
+      x: filteredKline.map((d) => d.date),
+      y: aligned,
+      type: "scatter" as const,
+      mode: "lines" as const,
+      name: `美债${usRateLabel || ""}`,
+      line: { color: "#60a5fa", width: 1.5, dash: "dash" },
+      xaxis: "x",
+      yaxis: "y2",
+    };
+  }, [showUsRate, usRateData, usRateLabel, filteredKline]);
+
   const chartTraces = chartType === "line"
-    ? [highLine, line, lowLine, ...maTraces, ...bollTraces]
-    : [candlestick, ...maTraces, ...bollTraces];
+    ? [highLine, line, lowLine, ...maTraces, ...bollTraces, ...(usRateTrace ? [usRateTrace] : [])]
+    : [candlestick, ...maTraces, ...bollTraces, ...(usRateTrace ? [usRateTrace] : [])];
 
   return (
     <FullscreenChart title="K线图">
@@ -239,6 +264,19 @@ export default function StockChart({ klineData, indicators }: Props) {
                 </button>
               ))}
             </div>
+            {/* 美债利率叠加 */}
+            {usRateData && usRateData.length > 0 && (
+              <button
+                onClick={() => setShowUsRate((v) => !v)}
+                className={`px-2 py-1 text-xs rounded transition-colors ${
+                  showUsRate
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-800/80 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                美债{usRateLabel || ""}
+              </button>
+            )}
           </div>
           <Plot
             data={chartTraces}
@@ -279,6 +317,15 @@ export default function StockChart({ klineData, indicators }: Props) {
                 spikethickness: 1,
                 spikecolor: "#4b5563",
               },
+              ...(showUsRate && usRateTrace ? {
+                yaxis2: {
+                  side: "left",
+                  overlaying: "y",
+                  gridcolor: "rgba(96,165,250,0.15)",
+                  title: { text: "美债利率 %", font: { size: 10, color: "#60a5fa" } },
+                  showspikes: false,
+                },
+              } : {}),
               margin: { t: 30, r: 40, b: 55, l: 40 },
               height: isFullscreen ? Math.max(400, window.innerHeight - 120) : 450,
               showlegend: true,
