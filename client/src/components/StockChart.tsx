@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import Plot from "react-plotly.js";
 import type { KlineData, IndicatorResult } from "../types";
 import FullscreenChart from "./FullscreenChart";
@@ -15,6 +15,21 @@ function getCol(ind: IndicatorResult, colName: string): number[] | undefined {
 
 export default function StockChart({ klineData, indicators }: Props) {
   const [chartType, setChartType] = useState<"candlestick" | "line">("candlestick");
+
+  // 缩放/拖拽操作日志
+  const interactCount = useRef(0);
+  const handleRelayout = useCallback((e: any) => {
+    interactCount.current++;
+    const keys = Object.keys(e || {});
+    const op = keys.some((k) => k.includes("autorange")) ? "reset"
+      : keys.some((k) => k.includes("range")) ? "zoom/pan"
+      : "other";
+    console.log(`[chart:K线图] #${interactCount.current} ${op}`, {
+      time: new Date().toISOString(),
+      keys,
+      detail: e,
+    });
+  }, []);
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
 
@@ -270,6 +285,7 @@ export default function StockChart({ klineData, indicators }: Props) {
               legend: { orientation: "h", y: 1.12, font: { size: 10 } },
               dragmode: "zoom",
             }}
+            onRelayout={handleRelayout}
             config={{
               responsive: true,
               displayModeBar: true,
