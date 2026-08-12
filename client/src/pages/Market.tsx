@@ -276,7 +276,13 @@ export default function Market() {
                         font: { color: "#e5e7eb", size: 11 },
                       },
                     }}
-                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+                    config={{
+                      responsive: true,
+                      displayModeBar: true,
+                      scrollZoom: true,
+                      displaylogo: false,
+                      modeBarButtonsToRemove: ["lasso2d", "select2d"],
+                    }}
                     style={{ width: "100%" }}
                   />
                 </div>
@@ -385,7 +391,13 @@ export default function Market() {
                         font: { color: "#e5e7eb", size: 11 },
                       },
                     }}
-                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+                    config={{
+                      responsive: true,
+                      displayModeBar: true,
+                      scrollZoom: true,
+                      displaylogo: false,
+                      modeBarButtonsToRemove: ["lasso2d", "select2d"],
+                    }}
                     style={{ width: "100%" }}
                   />
                 </div>
@@ -444,7 +456,13 @@ export default function Market() {
                         font: { color: "#e5e7eb", size: 11 },
                       },
                     }}
-                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+                    config={{
+                      responsive: true,
+                      displayModeBar: true,
+                      scrollZoom: true,
+                      displaylogo: false,
+                      modeBarButtonsToRemove: ["lasso2d", "select2d"],
+                    }}
                     style={{ width: "100%" }}
                   />
                 </div>
@@ -503,7 +521,13 @@ export default function Market() {
                         font: { color: "#e5e7eb", size: 11 },
                       },
                     }}
-                    config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+                    config={{
+                      responsive: true,
+                      displayModeBar: true,
+                      scrollZoom: true,
+                      displaylogo: false,
+                      modeBarButtonsToRemove: ["lasso2d", "select2d"],
+                    }}
                     style={{ width: "100%" }}
                   />
                 </div>

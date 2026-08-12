@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Plot from "react-plotly.js";
 import type { KlineData, IndicatorResult } from "../types";
 import FullscreenChart from "./FullscreenChart";
@@ -15,16 +15,63 @@ function getCol(ind: IndicatorResult, colName: string): number[] | undefined {
 
 export default function StockChart({ klineData, indicators }: Props) {
   const [chartType, setChartType] = useState<"candlestick" | "line">("candlestick");
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
+
+  // 初始化日期范围：默认显示全部
+  useEffect(() => {
+    if (klineData.length > 0) {
+      if (!dateStart) setDateStart(klineData[0].date);
+      if (!dateEnd) setDateEnd(klineData[klineData.length - 1].date);
+    }
+  }, [klineData]);
+
+  // 按日期范围筛选数据
+  const { filteredKline, filteredIndicators } = useMemo(() => {
+    if (klineData.length === 0) return { filteredKline: [], filteredIndicators: indicators };
+    const allDates = klineData.map((d) => d.date);
+    let startIdx = 0;
+    let endIdx = allDates.length - 1;
+    if (dateStart) {
+      const i = allDates.findIndex((d) => d >= dateStart);
+      if (i >= 0) startIdx = i;
+    }
+    if (dateEnd) {
+      const i = allDates.findIndex((d) => d > dateEnd);
+      endIdx = i >= 0 ? i - 1 : allDates.length - 1;
+    }
+    if (startIdx > endIdx) { startIdx = 0; endIdx = allDates.length - 1; }
+    const filteredKline = klineData.slice(startIdx, endIdx + 1);
+    const filteredIndicators = indicators.map((ind) => ({
+      ...ind,
+      values: ind.values.map((arr) => arr.slice(startIdx, endIdx + 1)),
+    }));
+    return { filteredKline, filteredIndicators };
+  }, [klineData, indicators, dateStart, dateEnd]);
+
+  // 快捷时间段
+  const setPreset = (months: number | "all") => {
+    if (months === "all" || klineData.length === 0) {
+      setDateStart(klineData.length > 0 ? klineData[0].date : "");
+      setDateEnd(klineData.length > 0 ? klineData[klineData.length - 1].date : "");
+      return;
+    }
+    const end = new Date(klineData[klineData.length - 1].date);
+    const start = new Date(end);
+    start.setMonth(start.getMonth() - months);
+    setDateStart(start.toISOString().slice(0, 10));
+    setDateEnd(end.toISOString().slice(0, 10));
+  };
 
   const { candlestick, line, highLine, lowLine, maTraces, bollTraces } = useMemo(() => {
-    const dates = klineData.map((d) => d.date);
+    const dates = filteredKline.map((d) => d.date);
 
     const candlestick = {
       x: dates,
-      open: klineData.map((d) => d.open),
-      high: klineData.map((d) => d.high),
-      low: klineData.map((d) => d.low),
-      close: klineData.map((d) => d.close),
+      open: filteredKline.map((d) => d.open),
+      high: filteredKline.map((d) => d.high),
+      low: filteredKline.map((d) => d.low),
+      close: filteredKline.map((d) => d.close),
       type: "candlestick" as const,
       name: "K线",
       increasing: { line: { color: "#ef4444" }, fillcolor: "#ef4444" },
@@ -35,7 +82,7 @@ export default function StockChart({ klineData, indicators }: Props) {
 
     const line = {
       x: dates,
-      y: klineData.map((d) => d.close),
+      y: filteredKline.map((d) => d.close),
       type: "scatter" as const,
       mode: "lines",
       name: "收盘价",
@@ -46,7 +93,7 @@ export default function StockChart({ klineData, indicators }: Props) {
 
     const highLine = {
       x: dates,
-      y: klineData.map((d) => d.high),
+      y: filteredKline.map((d) => d.high),
       type: "scatter" as const,
       mode: "lines",
       name: "最高价",
@@ -57,7 +104,7 @@ export default function StockChart({ klineData, indicators }: Props) {
 
     const lowLine = {
       x: dates,
-      y: klineData.map((d) => d.low),
+      y: filteredKline.map((d) => d.low),
       type: "scatter" as const,
       mode: "lines",
       name: "最低价",
@@ -69,7 +116,7 @@ export default function StockChart({ klineData, indicators }: Props) {
     const maTraces: any[] = [];
     const bollTraces: any[] = [];
 
-    for (const ind of indicators) {
+    for (const ind of filteredIndicators) {
       if (ind.name === "MA") {
         const period = ind.params.period || 20;
         const vals = getCol(ind, `MA_${period}`);
@@ -118,7 +165,7 @@ export default function StockChart({ klineData, indicators }: Props) {
     }
 
     return { candlestick, line, highLine, lowLine, maTraces, bollTraces };
-  }, [klineData, indicators]);
+  }, [filteredKline, filteredIndicators]);
 
   const chartTraces = chartType === "line"
     ? [highLine, line, lowLine, ...maTraces, ...bollTraces]
@@ -128,20 +175,55 @@ export default function StockChart({ klineData, indicators }: Props) {
     <FullscreenChart title="K线图">
       {(isFullscreen) => (
         <>
-          <div className="absolute top-1 right-9 z-10 flex overflow-hidden rounded bg-gray-800/80 text-xs">
-            {(["candlestick", "line"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setChartType(t)}
-                className={`px-2 py-1 transition-colors ${
-                  chartType === t
-                    ? "bg-blue-700 text-white"
-                    : "text-gray-300 hover:bg-gray-700"
-                }`}
-              >
-                {t === "candlestick" ? "K线" : "折线"}
-              </button>
-            ))}
+          <div className="absolute top-1 right-9 z-10 flex items-center gap-1">
+            {/* 快捷时间段 */}
+            <div className="flex overflow-hidden rounded bg-gray-800/80 text-xs">
+              {([
+                { label: "1月", val: 1 },
+                { label: "3月", val: 3 },
+                { label: "6月", val: 6 },
+                { label: "1年", val: 12 },
+                { label: "全部", val: "all" as const },
+              ] as const).map((p) => (
+                <button
+                  key={p.label}
+                  onClick={() => setPreset(p.val)}
+                  className="px-1.5 py-1 text-gray-300 hover:bg-gray-700 transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {/* 日期选择 */}
+            <input
+              type="date"
+              value={dateStart}
+              onChange={(e) => setDateStart(e.target.value)}
+              className="bg-gray-800/80 text-gray-300 text-xs rounded px-1 py-1 border border-gray-700 outline-none focus:border-blue-600"
+            />
+            <span className="text-gray-500 text-xs">~</span>
+            <input
+              type="date"
+              value={dateEnd}
+              onChange={(e) => setDateEnd(e.target.value)}
+              className="bg-gray-800/80 text-gray-300 text-xs rounded px-1 py-1 border border-gray-700 outline-none focus:border-blue-600"
+            />
+            {/* K线/折线切换 */}
+            <div className="flex overflow-hidden rounded bg-gray-800/80 text-xs">
+              {(["candlestick", "line"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setChartType(t)}
+                  className={`px-2 py-1 transition-colors ${
+                    chartType === t
+                      ? "bg-blue-700 text-white"
+                      : "text-gray-300 hover:bg-gray-700"
+                  }`}
+                >
+                  {t === "candlestick" ? "K线" : "折线"}
+                </button>
+              ))}
+            </div>
           </div>
           <Plot
             data={chartTraces}
@@ -186,9 +268,15 @@ export default function StockChart({ klineData, indicators }: Props) {
               height: isFullscreen ? Math.max(400, window.innerHeight - 120) : 450,
               showlegend: true,
               legend: { orientation: "h", y: 1.12, font: { size: 10 } },
-              dragmode: "pan",
+              dragmode: "zoom",
             }}
-            config={{ responsive: true, displayModeBar: false, scrollZoom: "x" }}
+            config={{
+              responsive: true,
+              displayModeBar: true,
+              scrollZoom: true,
+              displaylogo: false,
+              modeBarButtonsToRemove: ["lasso2d", "select2d"],
+            }}
             style={{ width: "100%" }}
           />
         </>
