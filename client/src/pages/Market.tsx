@@ -1,10 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Plot from "react-plotly.js";
 import type { KlineData, KlinePeriod, RealtimeQuote, MacroIndicator } from "../types";
 import { fetchMarketIndexes, fetchIndexKline, fetchMacroIndicators, fetchUsRateHistory, fetchCnRateHistory, fetchIndexPeriodData, fetchFxCnyUsd, fetchGoldPrice, fetchCrudeOil, fetchCn10y } from "../api/client";
 import StockChart from "../components/StockChart";
 
+// 缩放/拖拽操作日志
+const chartLog = (name: string, count: number, e: any) => {
+  const keys = Object.keys(e || {});
+  const op = keys.some((k) => k.includes("autorange")) ? "reset"
+    : keys.some((k) => k.includes("range")) ? "zoom/pan"
+    : "other";
+  console.log(`[chart:${name}] #${count} ${op}`, {
+    time: new Date().toISOString(),
+    keys,
+    detail: e,
+  });
+};
+
 export default function Market() {
+  const interactCounts = useRef<Record<string, number>>({});
   const [indexes, setIndexes] = useState<RealtimeQuote[]>([]);
   const [selected, setSelected] = useState<RealtimeQuote | null>(null);
   const [klineData, setKlineData] = useState<KlineData[]>([]);
@@ -276,6 +290,7 @@ export default function Market() {
                         font: { color: "#e5e7eb", size: 11 },
                       },
                     }}
+                    onRelayout={(e) => { const c = (interactCounts.current["人民币利率"] = (interactCounts.current["人民币利率"] || 0) + 1); chartLog("人民币利率", c, e); }}
                     config={{
                       responsive: true,
                       displayModeBar: true,
@@ -391,6 +406,7 @@ export default function Market() {
                         font: { color: "#e5e7eb", size: 11 },
                       },
                     }}
+                    onRelayout={(e) => { const c = (interactCounts.current["综合归一化"] = (interactCounts.current["综合归一化"] || 0) + 1); chartLog("综合归一化", c, e); }}
                     config={{
                       responsive: true,
                       displayModeBar: true,
@@ -456,6 +472,7 @@ export default function Market() {
                         font: { color: "#e5e7eb", size: 11 },
                       },
                     }}
+                    onRelayout={(e) => { const c = (interactCounts.current["汇率"] = (interactCounts.current["汇率"] || 0) + 1); chartLog("汇率", c, e); }}
                     config={{
                       responsive: true,
                       displayModeBar: true,
@@ -521,6 +538,7 @@ export default function Market() {
                         font: { color: "#e5e7eb", size: 11 },
                       },
                     }}
+                    onRelayout={(e) => { const c = (interactCounts.current["黄金"] = (interactCounts.current["黄金"] || 0) + 1); chartLog("黄金", c, e); }}
                     config={{
                       responsive: true,
                       displayModeBar: true,
